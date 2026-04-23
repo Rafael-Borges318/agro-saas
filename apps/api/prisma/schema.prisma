@@ -1,0 +1,306 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  PRODUTOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AnimalEspecie {
+  BOVINO
+  SUINO
+  AVICOLA
+  OVINO
+  CAPRINO
+  EQUINO
+  OUTRO
+}
+
+enum AnimalSexo {
+  MACHO
+  FEMEA
+}
+
+enum AnimalStatus {
+  ATIVO
+  VENDIDO
+  MORTO
+  TRANSFERIDO
+}
+
+enum CulturaStatus {
+  PLANEJADA
+  PLANTADA
+  EM_CRESCIMENTO
+  COLHIDA
+  PERDIDA
+}
+
+enum TransacaoCategoria {
+  ALIMENTACAO
+  SAUDE_ANIMAL
+  INSUMOS
+  EQUIPAMENTOS
+  COMBUSTIVEL
+  MAO_DE_OBRA
+  VENDA_ANIMAL
+  VENDA_PRODUCAO
+  FINANCIAMENTO
+  OUTROS
+}
+
+enum NotificacaoTipo {
+  INFO
+  ALERTA
+  URGENTE
+  SISTEMA
+}
+
+enum MarketplaceStatus {
+  ATIVO
+  INATIVO
+  VENDIDO
+  REMOVIDO
+}
+
+enum PlanStatus {
+  ATIVO
+  INATIVO
+  ARQUIVADO
+}
+
+enum SubscriptionStatus {
+  ATIVA
+  CANCELADA
+  EXPIRADA
+  TRIAL
+}
+
+// ─── Modelos ──────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(PRODUTOR)
+  avatarUrl    String?   @map("avatar_url")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  produtor      Produtor?
+  notificacoes  Notificacao[]
+  subscription  Subscription?
+
+  @@map("users")
+}
+
+model Produtor {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  cpf       String   @unique
+  telefone  String?
+  estado    String?  @db.Char(2)
+  cidade    String?
+  bio       String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propriedades Propriedade[]
+
+  @@map("produtores")
+}
+
+model Propriedade {
+  id           String   @id @default(uuid())
+  produtorId   String   @map("produtor_id")
+  nome         String
+  areaHectares Float    @map("area_hectares")
+  municipio    String
+  estado       String   @db.Char(2)
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  produtor   Produtor   @relation(fields: [produtorId], references: [id], onDelete: Cascade)
+  animais    Animal[]
+  culturas   Cultura[]
+  despesas   Despesa[]
+  receitas   Receita[]
+  relatorios Relatorio[]
+
+  @@map("propriedades")
+}
+
+model Animal {
+  id                 String        @id @default(uuid())
+  propriedadeId      String        @map("propriedade_id")
+  nome               String?
+  numeroIdentificacao String?      @map("numero_identificacao")
+  especie            AnimalEspecie
+  raca               String?
+  sexo               AnimalSexo
+  dataNascimento     DateTime?     @map("data_nascimento")
+  pesoKg             Float?        @map("peso_kg")
+  status             AnimalStatus  @default(ATIVO)
+  observacoes        String?       @db.Text
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+
+  @@map("animais")
+}
+
+model Cultura {
+  id                    String        @id @default(uuid())
+  propriedadeId         String        @map("propriedade_id")
+  nome                  String
+  tipo                  String
+  areaHectares          Float         @map("area_hectares")
+  dataPlantio           DateTime?     @map("data_plantio")
+  dataColheitaEstimada  DateTime?     @map("data_colheita_estimada")
+  status                CulturaStatus @default(PLANEJADA)
+  producaoKg            Float?        @map("producao_kg")
+  observacoes           String?       @db.Text
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+
+  @@map("culturas")
+}
+
+model PrecoAgricola {
+  id        String   @id @default(uuid())
+  produto   String
+  preco     Float
+  unidade   String
+  estado    String?  @db.Char(2)
+  fonte     String?
+  data      DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("precos_agricolas")
+}
+
+model Despesa {
+  id            String              @id @default(uuid())
+  propriedadeId String              @map("propriedade_id")
+  descricao     String
+  valor         Float
+  data          DateTime
+  categoria     TransacaoCategoria  @default(OUTROS)
+  comprovante   String?
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+
+  @@map("despesas")
+}
+
+model Receita {
+  id            String              @id @default(uuid())
+  propriedadeId String              @map("propriedade_id")
+  descricao     String
+  valor         Float
+  data          DateTime
+  categoria     TransacaoCategoria  @default(VENDA_PRODUCAO)
+  comprovante   String?
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+
+  @@map("receitas")
+}
+
+model Relatorio {
+  id            String   @id @default(uuid())
+  propriedadeId String   @map("propriedade_id")
+  titulo        String
+  tipo          String
+  url           String?
+  dados         Json?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+
+  @@map("relatorios")
+}
+
+model Notificacao {
+  id        String          @id @default(uuid())
+  userId    String          @map("user_id")
+  titulo    String
+  mensagem  String          @db.Text
+  tipo      NotificacaoTipo @default(INFO)
+  lida      Boolean         @default(false)
+  criadoEm DateTime        @default(now()) @map("criado_em")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notificacoes")
+}
+
+model MarketplaceProduct {
+  id          String            @id @default(uuid())
+  produtorId  String            @map("produtor_id")
+  titulo      String
+  descricao   String            @db.Text
+  preco       Float
+  quantidade  Float
+  unidade     String            @default("un")
+  imageUrl    String?           @map("image_url")
+  status      MarketplaceStatus @default(ATIVO)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@map("marketplace_products")
+}
+
+model Plan {
+  id                  String      @id @default(uuid())
+  nome                String
+  preco               Float
+  descricao           String      @db.Text
+  features            String[]
+  limitePropriedades  Int         @default(1) @map("limite_propriedades")
+  limiteAnimais       Int         @default(50) @map("limite_animais")
+  status              PlanStatus  @default(ATIVO)
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String             @unique @map("user_id")
+  planId      String             @map("plan_id")
+  status      SubscriptionStatus @default(TRIAL)
+  dataInicio  DateTime           @default(now()) @map("data_inicio")
+  dataFim     DateTime           @map("data_fim")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}

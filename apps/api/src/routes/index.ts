@@ -1,0 +1,34 @@
+import { Router } from 'express';
+import { authRouter } from '../modules/auth/auth.routes';
+import { usersRouter } from '../modules/users/users.routes';
+import { produtoresRouter } from '../modules/produtores/produtores.routes';
+import { propriedadesRouter } from '../modules/propriedades/propriedades.routes';
+import { animaisRouter } from '../modules/animais/animais.routes';
+import { culturasRouter } from '../modules/culturas/culturas.routes';
+import { climaRouter } from '../modules/clima/clima.routes';
+import { precosRouter } from '../modules/precos/precos.routes';
+import { financeiroRouter } from '../modules/financeiro/financeiro.routes';
+import { notificacoesRouter } from '../modules/notificacoes/notificacoes.routes';
+import { marketplaceRouter } from '../modules/marketplace/marketplace.routes';
+import { relatoriosRouter } from '../modules/relatorios/relatorios.routes';
+import { adminRouter } from '../modules/admin/admin.routes';
+import { plansRouter } from '../modules/plans/plans.routes';
+import { subscriptionsRouter } from '../modules/subscriptions/subscriptions.routes';
+
+export const router = Router();
+
+router.use('/auth', authRouter);
+router.use('/users', usersRouter);
+router.use('/produtores', produtoresRouter);
+router.use('/propriedades', propriedadesRouter);
+router.use('/animais', animaisRouter);
+router.use('/culturas', culturasRouter);
+router.use('/clima', climaRouter);
+router.use('/precos', precosRouter);
+router.use('/financeiro', financeiroRouter);
+router.use('/notificacoes', notificacoesRouter);
+router.use('/marketplace', marketplaceRouter);
+router.use('/relatorios', relatoriosRouter);
+router.use('/admin', adminRouter);
+router.use('/plans', plansRouter);
+router.use('/subscriptions', subscriptionsRouter);
