@@ -55,6 +55,7 @@ export interface CurrentWeather {
   sensacao: number;
   umidade: number;
   chuva: boolean;
+  chuvaAmm: number;
   vento: number;
   descricao: string;
   icone: string;
@@ -70,6 +71,15 @@ export interface ForecastDay {
   icone: string;
   chuva: boolean;
   precipitacaoMm: number;
+  chanceDeChuva?: number;
+}
+
+export interface CityResult {
+  name: string;
+  state: string;
+  country: string;
+  lat: number;
+  lon: number;
 }
 
 export interface PrecoAgricola {

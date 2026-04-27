@@ -9,6 +9,7 @@ export interface CurrentWeather {
   sensacao: number;
   umidade: number;
   chuva: boolean;
+  chuvaAmm: number;
   vento: number;
   descricao: string;
   icone: string;
@@ -25,11 +26,12 @@ export interface ForecastDay {
   icone: string;
   chuva: boolean;
   precipitacaoMm: number;
+  chanceDeChuva: number;
 }
 
 export type ClimaQuery = { cidade?: string; lat?: number; lon?: number };
 
-/* ─── Mock fallback (used when API key absent or external request fails) ── */
+/* ─── Mock fallback ─────────────────────────────────────────────────────── */
 function mockCurrent(cidade: string): CurrentWeather {
   const hour = new Date().getHours();
   const temp = 22 + Math.round(Math.sin((hour - 6) * Math.PI / 12) * 8);
@@ -39,6 +41,7 @@ function mockCurrent(cidade: string): CurrentWeather {
     sensacao: temp - 2,
     umidade: 68,
     chuva: false,
+    chuvaAmm: 0,
     vento: 14,
     descricao: 'parcialmente nublado',
     icone: hour >= 6 && hour < 18 ? '02d' : '02n',
@@ -50,9 +53,11 @@ function mockCurrent(cidade: string): CurrentWeather {
 
 function mockForecast(): ForecastDay[] {
   const today = new Date();
-  const descs = ['céu limpo', 'parcialmente nublado', 'nublado', 'chuva fraca', 'céu limpo'];
-  const icons = ['01d', '02d', '03d', '10d', '01d'];
-  return Array.from({ length: 5 }, (_, i) => {
+  const descs = ['céu limpo', 'parcialmente nublado', 'nublado', 'chuva fraca', 'céu limpo', 'parcialmente nublado', 'céu limpo'];
+  const icons = ['01d', '02d', '03d', '10d', '01d', '02d', '01d'];
+  const rains = [false, false, false, true, false, false, false];
+  const rainMm = [0, 0, 0, 4.2, 0, 0, 0];
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
     return {
@@ -61,8 +66,9 @@ function mockForecast(): ForecastDay[] {
       tempMax: 24 + i,
       descricao: descs[i],
       icone: icons[i],
-      chuva: i === 3,
-      precipitacaoMm: i === 3 ? 4.2 : 0,
+      chuva: rains[i],
+      precipitacaoMm: rainMm[i],
+      chanceDeChuva: rains[i] ? 70 : 10,
     };
   });
 }
@@ -71,6 +77,8 @@ function mockForecast(): ForecastDay[] {
 async function owFetch<T>(path: string, params: Record<string, string | number>): Promise<T> {
   const key = env.OPENWEATHER_API_KEY;
   if (!key) throw new Error('OPENWEATHER_API_KEY não configurada');
+
+  logger.debug(`[clima] Calling OW /${path} (key: ${key.slice(0, 6)}...)`);
 
   const qs = new URLSearchParams({
     ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
@@ -106,12 +114,16 @@ export const climaService = {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const d = await owFetch<any>('weather', locationParams(q));
       const main = d.weather?.[0]?.main as string | undefined;
+      const rainMm = parseFloat(
+        ((d.rain?.['1h'] ?? d.rain?.['3h'] ?? 0) as number).toFixed(1),
+      );
       return {
         cidade: d.name as string,
         temperatura: Math.round(d.main.temp as number),
         sensacao: Math.round(d.main.feels_like as number),
         umidade: d.main.humidity as number,
         chuva: !!(d.rain || main === 'Rain' || main === 'Drizzle' || main === 'Thunderstorm'),
+        chuvaAmm: rainMm,
         vento: Math.round(((d.wind?.speed as number) ?? 0) * 3.6),
         descricao: (d.weather?.[0]?.description as string) ?? '',
         icone: (d.weather?.[0]?.icon as string) ?? '',
@@ -126,8 +138,9 @@ export const climaService = {
 
   async getForecast(q: ClimaQuery): Promise<ForecastDay[]> {
     try {
+      // cnt=56 = 7 days × 8 slots of 3 h each
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const d = await owFetch<any>('forecast', { ...locationParams(q), cnt: 40 });
+      const d = await owFetch<any>('forecast', { ...locationParams(q), cnt: 56 });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const byDay = new Map<string, any[]>();
@@ -139,7 +152,7 @@ export const climaService = {
       }
 
       return Array.from(byDay.entries())
-        .slice(0, 5)
+        .slice(0, 7)
         .map(([day, items]) => {
           const temps = items.map((i) => i.main.temp as number);
           const noon =
@@ -162,6 +175,9 @@ export const climaService = {
               items
                 .reduce((acc: number, i) => acc + ((i.rain?.['3h'] as number) ?? 0), 0)
                 .toFixed(1),
+            ),
+            chanceDeChuva: Math.round(
+              (items.reduce((acc: number, i) => acc + ((i.pop as number) ?? 0), 0) / items.length) * 100,
             ),
           };
         });
