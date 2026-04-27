@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from './auth.service';
+import { authRepository } from './auth.repository';
+import { UnauthorizedError } from '../../utils/AppError';
+import type { AuthenticatedRequest } from '../../middlewares/auth.middleware';
 import type { LoginDTO, RegisterDTO } from './auth.types';
 
 export const authController = {
@@ -21,9 +24,11 @@ export const authController = {
     }
   },
 
-  async me(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async me(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      res.json({ status: 'success', data: { userId: (req as any).userId } });
+      const user = await authRepository.findById(req.userId!);
+      if (!user) throw new UnauthorizedError('Usuário não encontrado');
+      res.json({ status: 'success', data: { user } });
     } catch (err) {
       next(err);
     }

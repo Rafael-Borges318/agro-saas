@@ -1,5 +1,13 @@
 import { prisma } from '../../config/db';
 
+const USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  onboardingCompleted: true,
+} as const;
+
 export const authRepository = {
   findByEmail(email: string) {
     return prisma.user.findUnique({ where: { email } });
@@ -12,7 +20,14 @@ export const authRepository = {
         email: data.email,
         passwordHash: data.passwordHash,
       },
-      select: { id: true, name: true, email: true, role: true },
+      select: USER_SELECT,
+    });
+  },
+
+  findById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      select: USER_SELECT,
     });
   },
 };

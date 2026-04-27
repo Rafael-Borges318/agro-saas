@@ -17,9 +17,11 @@ export const produtoresService = {
     return p;
   },
 
-  async create(userId: string, data: { cpf: string; telefone?: string; estado?: string; cidade?: string; bio?: string }) {
-    const existing = await prisma.produtor.findUnique({ where: { cpf: data.cpf } });
-    if (existing) throw new ConflictError('CPF já cadastrado');
+  async create(userId: string, data: { cpf?: string; telefone?: string; estado?: string; cidade?: string; bio?: string }) {
+    if (data.cpf) {
+      const existing = await prisma.produtor.findUnique({ where: { cpf: data.cpf } });
+      if (existing) throw new ConflictError('CPF já cadastrado');
+    }
     return prisma.produtor.create({ data: { userId, ...data } });
   },
 

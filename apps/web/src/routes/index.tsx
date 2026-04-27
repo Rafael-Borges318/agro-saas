@@ -1,8 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { PublicRoutes } from './public-routes';
 import { PrivateRoutes } from './private-routes';
+import { AuthOnlyRoutes } from './auth-only-routes';
 import { Landing } from '../pages/Landing';
 import { Login } from '../pages/Login';
+import { Register } from '../pages/Register';
+import { Onboarding } from '../pages/Onboarding';
+import { Planos } from '../pages/Planos';
 import { Dashboard } from '../pages/Dashboard';
 import { Clima } from '../pages/Clima';
 import { Precos } from '../pages/Precos';
@@ -17,11 +21,20 @@ export function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* ── Public (unauthenticated only) ── */}
         <Route element={<PublicRoutes />}>
           <Route path={ROUTES.HOME} element={<Landing />} />
           <Route path={ROUTES.LOGIN} element={<Login />} />
+          <Route path={ROUTES.REGISTER} element={<Register />} />
         </Route>
 
+        {/* ── Auth required, no layout (onboarding flow) ── */}
+        <Route element={<AuthOnlyRoutes />}>
+          <Route path={ROUTES.ONBOARDING} element={<Onboarding />} />
+          <Route path={ROUTES.PLANOS} element={<Planos />} />
+        </Route>
+
+        {/* ── Auth + onboarding required, with layout ── */}
         <Route element={<PrivateRoutes />}>
           <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
           <Route path={ROUTES.CLIMA} element={<Clima />} />

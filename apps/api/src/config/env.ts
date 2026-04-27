@@ -11,6 +11,9 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  ADMIN_EMAIL: z.string().email().optional(),
+  ADMIN_PASSWORD: z.string().min(6).optional(),
+  OPENWEATHER_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

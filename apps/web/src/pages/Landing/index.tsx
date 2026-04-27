@@ -312,6 +312,7 @@ function PlanCard({
   features: planFeatures,
   featured,
   cta,
+  planSlug,
 }: {
   name: string;
   price: string;
@@ -319,6 +320,7 @@ function PlanCard({
   features: string[];
   featured?: boolean;
   cta: string;
+  planSlug: string;
 }) {
   return (
     <div
@@ -359,7 +361,7 @@ function PlanCard({
       </ul>
 
       <Link
-        to={ROUTES.REGISTER}
+        to={`${ROUTES.REGISTER}?plano=${planSlug}`}
         className={[
           'block text-center py-3 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-[0.97]',
           featured
@@ -601,6 +603,7 @@ export function Landing() {
               sub="/mês"
               features={freePlanFeatures}
               cta="Começar Agora"
+              planSlug="gratuito"
             />
             <PlanCard
               name="Produtor"
@@ -609,6 +612,7 @@ export function Landing() {
               features={proPlanFeatures}
               featured
               cta="Começar Agora"
+              planSlug="produtor"
             />
             <PlanCard
               name="Cooperativa"
@@ -616,6 +620,7 @@ export function Landing() {
               sub="/mês"
               features={cooperativaPlanFeatures}
               cta="Começar Agora"
+              planSlug="cooperativa"
             />
           </div>
         </div>

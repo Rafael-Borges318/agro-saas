@@ -5,6 +5,8 @@ export const ROUTES = {
   HOME: '/',
   LOGIN: '/login',
   REGISTER: '/cadastro',
+  ONBOARDING: '/onboarding',
+  PLANOS: '/planos',
   DASHBOARD: '/dashboard',
   CLIMA: '/clima',
   PRECOS: '/precos',

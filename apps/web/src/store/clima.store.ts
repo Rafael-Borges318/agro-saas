@@ -1,30 +1,28 @@
 import { create } from 'zustand';
-
-interface ClimaData {
-  cidade: string;
-  temperatura: number | null;
-  descricao: string;
-  umidade: number | null;
-}
+import type { CurrentWeather, ForecastDay } from '../types';
 
 interface ClimaState {
-  data: ClimaData | null;
+  current: CurrentWeather | null;
+  forecast: ForecastDay[];
   loading: boolean;
   error: string | null;
   cidade: string;
   setCidade: (cidade: string) => void;
-  setData: (data: ClimaData) => void;
+  setCurrent: (data: CurrentWeather) => void;
+  setForecast: (data: ForecastDay[]) => void;
   setLoading: (v: boolean) => void;
   setError: (msg: string | null) => void;
 }
 
 export const useClimaStore = create<ClimaState>((set) => ({
-  data: null,
+  current: null,
+  forecast: [],
   loading: false,
   error: null,
-  cidade: 'São Paulo',
+  cidade: 'Torres',
   setCidade: (cidade) => set({ cidade }),
-  setData: (data) => set({ data, error: null }),
+  setCurrent: (current) => set({ current, error: null }),
+  setForecast: (forecast) => set({ forecast }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error, loading: false }),
 }));

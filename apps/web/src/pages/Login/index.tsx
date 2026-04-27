@@ -20,6 +20,14 @@ export function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
+  const redirectAfterAuth = (onboardingCompleted: boolean) => {
+    if (!onboardingCompleted) {
+      navigate(ROUTES.ONBOARDING, { replace: true });
+    } else {
+      navigate(ROUTES.DASHBOARD, { replace: true });
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -27,11 +35,12 @@ export function Login() {
 
     try {
       if (mode === 'login') {
-        await login(email, password);
+        const user = await login(email, password);
+        redirectAfterAuth(user.onboardingCompleted);
       } else {
-        await register(name, email, password);
+        const user = await register(name, email, password);
+        redirectAfterAuth(user.onboardingCompleted);
       }
-      navigate(ROUTES.DASHBOARD, { replace: true });
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -127,12 +136,12 @@ export function Login() {
           {mode === 'login' && (
             <p className="text-center text-xs text-gray-400 mt-4">
               Não tem conta?{' '}
-              <button
-                onClick={() => setMode('register')}
+              <Link
+                to={ROUTES.REGISTER}
                 className="text-primary-600 font-semibold hover:underline"
               >
                 Cadastre-se grátis
-              </button>
+              </Link>
             </p>
           )}
         </div>

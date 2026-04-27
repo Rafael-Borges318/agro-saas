@@ -3,10 +3,16 @@ import { useAuthStore } from '../store/auth.store';
 import { ROUTES } from '../utils/constants';
 
 export function PublicRoutes() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { isAuthenticated, user } = useAuthStore();
 
   if (isAuthenticated) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />;
+    // Authenticated users: go to onboarding if not done, otherwise dashboard
+    return (
+      <Navigate
+        to={user?.onboardingCompleted ? ROUTES.DASHBOARD : ROUTES.ONBOARDING}
+        replace
+      />
+    );
   }
 
   return <Outlet />;

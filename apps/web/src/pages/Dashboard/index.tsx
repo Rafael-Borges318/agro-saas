@@ -1,6 +1,11 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
+import { useClimaStore } from '../../store/clima.store';
+import { precosService } from '../../services/precos.service';
+import { climaService } from '../../services/clima.service';
 import { ROUTES } from '../../utils/constants';
+import type { PrecoAgricola } from '../../types';
 
 /* ─── Icons ─── */
 function IconChevronRight() {
@@ -76,12 +81,19 @@ function IconStore() {
     </svg>
   );
 }
-
 function IconArrowUp() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
       <line x1="12" y1="19" x2="12" y2="5" />
       <polyline points="5 12 12 5 19 12" />
+    </svg>
+  );
+}
+function IconArrowDown() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <polyline points="19 12 12 19 5 12" />
     </svg>
   );
 }
@@ -94,63 +106,125 @@ function IconSetup() {
   );
 }
 
-/* ─── Data ─── */
-const alerts = [
-  {
-    color: 'amber',
-    borderClass: 'border-l-amber-400',
-    dotClass: 'bg-amber-400',
-    badgeClass: 'bg-amber-50 text-amber-700',
-    title: 'Previsão de chuva forte',
-    desc: 'Precipitação de 40mm esperada para amanhã',
-    time: 'há 2 horas',
-    badge: 'Clima',
-  },
-  {
-    color: 'emerald',
-    borderClass: 'border-l-emerald-400',
-    dotClass: 'bg-emerald-400',
-    badgeClass: 'bg-emerald-50 text-emerald-700',
-    title: 'Preço da soja subiu 3%',
-    desc: 'R$ 142,50/saca — Melhor momento para vender',
-    time: 'há 5 horas',
-    badge: 'Mercado',
-  },
-  {
-    color: 'primary',
-    borderClass: 'border-l-primary-400',
-    dotClass: 'bg-primary-400',
-    badgeClass: 'bg-primary-50 text-primary-700',
-    title: 'Plantio de milho em 15 dias',
-    desc: 'Época ideal para sua região começa em breve',
-    time: 'há 1 dia',
-    badge: 'Calendário',
-  },
-];
-
-const quickLinks = [
-  { Icon: IconCloud,   label: 'Clima',       path: ROUTES.CLIMA,      bg: 'bg-primary-50',  text: 'text-primary-500' },
-  { Icon: IconChart,   label: 'Mercado',     path: ROUTES.PRECOS,     bg: 'bg-emerald-50',  text: 'text-emerald-600' },
-  { Icon: IconDollar,  label: 'Financeiro',  path: ROUTES.FINANCEIRO, bg: 'bg-amber-50',    text: 'text-amber-600' },
-  { Icon: IconCow,     label: 'Rebanho',     path: ROUTES.ANIMAIS,    bg: 'bg-orange-50',   text: 'text-orange-600' },
-  { Icon: IconLeaf,    label: 'Culturas',    path: '#',               bg: 'bg-lime-50',     text: 'text-lime-700' },
-  { Icon: IconStore,   label: 'Marketplace', path: ROUTES.MARKETPLACE,bg: 'bg-rose-50',     text: 'text-rose-600' },
-];
-
+/* ─── Helpers ─── */
 const DAY_NAMES = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 function formatDate(d: Date) {
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]} de ${d.getFullYear()}`;
 }
+function formatBRL(v: number) {
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* ─── Derived alerts from real data ─── */
+interface Alert {
+  key: string;
+  borderClass: string;
+  dotClass: string;
+  badgeClass: string;
+  badge: string;
+  title: string;
+  desc: string;
+}
+
+function buildAlerts(
+  precos: PrecoAgricola[],
+  chuva: boolean,
+  climaCidade: string,
+): Alert[] {
+  const alerts: Alert[] = [];
+
+  if (chuva) {
+    alerts.push({
+      key: 'chuva',
+      borderClass: 'border-l-blue-400',
+      dotClass: 'bg-blue-400',
+      badgeClass: 'bg-blue-50 text-blue-700',
+      badge: 'Clima',
+      title: 'Chuva prevista na região',
+      desc: `Previsão de chuva para ${climaCidade}. Planeje as atividades de campo.`,
+    });
+  }
+
+  for (const p of precos) {
+    if (p.variacaoPct >= 2) {
+      alerts.push({
+        key: `up-${p.produto}`,
+        borderClass: 'border-l-emerald-400',
+        dotClass: 'bg-emerald-400',
+        badgeClass: 'bg-emerald-50 text-emerald-700',
+        badge: 'Mercado',
+        title: `${p.produto} subiu ${p.variacaoPct.toFixed(1)}%`,
+        desc: `R$ ${formatBRL(p.preco)}/${p.unidade} — Momento favorável para venda.`,
+      });
+    } else if (p.variacaoPct <= -2) {
+      alerts.push({
+        key: `down-${p.produto}`,
+        borderClass: 'border-l-red-400',
+        dotClass: 'bg-red-400',
+        badgeClass: 'bg-red-50 text-red-700',
+        badge: 'Mercado',
+        title: `${p.produto} caiu ${Math.abs(p.variacaoPct).toFixed(1)}%`,
+        desc: `R$ ${formatBRL(p.preco)}/${p.unidade} — Avalie o momento de venda.`,
+      });
+    }
+  }
+
+  return alerts.slice(0, 4);
+}
+
+const quickLinks = [
+  { Icon: IconCloud,  label: 'Clima',      path: ROUTES.CLIMA,       bg: 'bg-primary-50',  text: 'text-primary-500' },
+  { Icon: IconChart,  label: 'Mercado',    path: ROUTES.PRECOS,      bg: 'bg-emerald-50',  text: 'text-emerald-600' },
+  { Icon: IconDollar, label: 'Financeiro', path: ROUTES.FINANCEIRO,  bg: 'bg-amber-50',    text: 'text-amber-600' },
+  { Icon: IconCow,    label: 'Rebanho',    path: ROUTES.ANIMAIS,     bg: 'bg-orange-50',   text: 'text-orange-600' },
+  { Icon: IconLeaf,   label: 'Culturas',   path: '#',                bg: 'bg-lime-50',     text: 'text-lime-700' },
+  { Icon: IconStore,  label: 'Marketplace',path: ROUTES.MARKETPLACE, bg: 'bg-rose-50',     text: 'text-rose-600' },
+];
 
 /* ─── Component ─── */
 export function Dashboard() {
   const user = useAuthStore((s) => s.user);
+  const { current: climaCurrent, setCurrent, setForecast, cidade: climaCidade } = useClimaStore();
+
+  const [precos, setPrecos] = useState<PrecoAgricola[]>([]);
+  const [precosLoading, setPrecosLoading] = useState(true);
+  const [climaLoading, setClimaLoading] = useState(false);
+
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
   const firstName = user?.name?.split(' ')[0] ?? 'Produtor';
+
+  // Fetch latest prices
+  useEffect(() => {
+    setPrecosLoading(true);
+    precosService
+      .getLatest()
+      .then((r) => setPrecos(r.data))
+      .catch(() => setPrecos([]))
+      .finally(() => setPrecosLoading(false));
+  }, []);
+
+  // Fetch weather if not already in store
+  useEffect(() => {
+    if (climaCurrent) return;
+    setClimaLoading(true);
+    Promise.all([
+      climaService.getCurrent({ cidade: climaCidade }),
+      climaService.getForecast({ cidade: climaCidade }),
+    ])
+      .then(([cur, fore]) => {
+        setCurrent(cur.data);
+        setForecast(fore.data);
+      })
+      .catch(() => {})
+      .finally(() => setClimaLoading(false));
+  }, [climaCurrent, climaCidade, setCurrent, setForecast]);
+
+  const soja = precos.find((p) => p.produto.toLowerCase() === 'soja');
+  const alerts = buildAlerts(precos, climaCurrent?.chuva ?? false, climaCurrent?.cidade ?? climaCidade);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -173,7 +247,6 @@ export function Dashboard() {
 
       {/* ── Market hero card ── */}
       <div className="relative overflow-hidden rounded-3xl bg-blue-gradient p-5 sm:p-6 shadow-glow">
-        {/* Decorative element */}
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/5 rounded-full" />
         <div className="absolute -right-2 bottom-0 w-24 h-24 bg-white/5 rounded-full" />
 
@@ -182,47 +255,91 @@ export function Dashboard() {
             <p className="text-primary-200 text-xs font-semibold tracking-wide uppercase mb-2">
               Soja — Cultura Principal
             </p>
-            <div className="flex items-end gap-3 mb-1">
-              <span className="text-4xl sm:text-5xl font-bold text-white tracking-tight">R$ 142,50</span>
-            </div>
-            <p className="text-primary-200 text-sm mb-4">por saca de 60kg</p>
+
+            {precosLoading ? (
+              <div className="h-12 w-40 bg-white/10 rounded-xl animate-pulse mb-1" />
+            ) : soja ? (
+              <>
+                <div className="flex items-end gap-3 mb-1">
+                  <span className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
+                    R$ {formatBRL(soja.preco)}
+                  </span>
+                </div>
+                <p className="text-primary-200 text-sm mb-4">por {soja.unidade}</p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-end gap-3 mb-1">
+                  <span className="text-4xl sm:text-5xl font-bold text-white/50 tracking-tight">—</span>
+                </div>
+                <p className="text-primary-200 text-sm mb-4">sem dados disponíveis</p>
+              </>
+            )}
+
             <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/10">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              Momento favorável para venda
+              {soja && soja.variacaoPct > 0
+                ? 'Momento favorável para venda'
+                : soja && soja.variacaoPct < -2
+                ? 'Mercado em queda — monitore'
+                : 'Acompanhe o mercado'}
             </div>
           </div>
 
-          <div className="shrink-0">
-            <div className="flex items-center gap-1 bg-emerald-400 text-emerald-900 text-sm font-bold px-3 py-1.5 rounded-xl shadow-sm">
-              <IconArrowUp />
-              +3,2%
+          {soja && soja.variacaoPct !== 0 && (
+            <div className="shrink-0">
+              <div
+                className={[
+                  'flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-xl shadow-sm',
+                  soja.variacaoPct > 0
+                    ? 'bg-emerald-400 text-emerald-900'
+                    : 'bg-red-400 text-red-900',
+                ].join(' ')}
+              >
+                {soja.variacaoPct > 0 ? <IconArrowUp /> : <IconArrowDown />}
+                {soja.variacaoPct > 0 ? '+' : ''}{soja.variacaoPct.toFixed(1)}%
+              </div>
+              <p className="text-primary-300 text-[10px] text-right mt-1.5 font-medium">
+                variação
+              </p>
             </div>
-            <p className="text-primary-300 text-[10px] text-right mt-1.5 font-medium">últimas 24h</p>
-          </div>
+          )}
         </div>
 
-        <div className="relative mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
-          <div className="flex gap-4">
-            <div>
-              <p className="text-primary-300 text-[10px] font-medium uppercase tracking-wider mb-0.5">Mínima</p>
-              <p className="text-white text-sm font-bold">R$ 136,00</p>
-            </div>
-            <div>
-              <p className="text-primary-300 text-[10px] font-medium uppercase tracking-wider mb-0.5">Máxima</p>
-              <p className="text-white text-sm font-bold">R$ 145,20</p>
-            </div>
-            <div>
-              <p className="text-primary-300 text-[10px] font-medium uppercase tracking-wider mb-0.5">Volume</p>
-              <p className="text-white text-sm font-bold">Alto</p>
-            </div>
+        {/* Weather mini-widget */}
+        {(climaCurrent || climaLoading) && (
+          <div className="relative mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+            {climaLoading ? (
+              <div className="h-4 w-48 bg-white/10 rounded animate-pulse" />
+            ) : climaCurrent ? (
+              <>
+                <div className="flex gap-4">
+                  <div>
+                    <p className="text-primary-300 text-[10px] font-medium uppercase tracking-wider mb-0.5">
+                      {climaCurrent.cidade}
+                    </p>
+                    <p className="text-white text-sm font-bold">
+                      {climaCurrent.temperatura}°C · {climaCurrent.descricao}
+                    </p>
+                  </div>
+                  {climaCurrent.chuva && (
+                    <div className="flex items-center">
+                      <span className="text-[10px] font-semibold text-blue-200 bg-blue-400/20 px-2 py-0.5 rounded-full border border-blue-300/20">
+                        Chuva prevista
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <Link
+                  to={ROUTES.CLIMA}
+                  className="flex items-center gap-1 text-primary-200 text-xs font-semibold hover:text-white transition-colors"
+                >
+                  Clima <IconChevronRight />
+                </Link>
+              </>
+            ) : null}
           </div>
-          <Link
-            to={ROUTES.PRECOS}
-            className="flex items-center gap-1 text-primary-200 text-xs font-semibold hover:text-white transition-colors"
-          >
-            Ver mais <IconChevronRight />
-          </Link>
-        </div>
+        )}
       </div>
 
       {/* ── Stats row ── */}
@@ -231,7 +348,13 @@ export function Dashboard() {
           { label: 'Animais ativos', value: '—', Icon: IconCow,    color: 'bg-orange-50 text-orange-500 ring-orange-100', sub: 'Conecte sua propriedade' },
           { label: 'Saldo do mês',   value: '—', Icon: IconWallet, color: 'bg-amber-50 text-amber-500 ring-amber-100',   sub: 'Configure o financeiro' },
           { label: 'Culturas',       value: '—', Icon: IconLeaf,   color: 'bg-lime-50 text-lime-600 ring-lime-100',      sub: 'Adicione uma cultura' },
-          { label: 'Alertas',        value: '3', Icon: IconBell,   color: 'bg-primary-50 text-primary-500 ring-primary-100', sub: '3 novos alertas' },
+          {
+            label: 'Alertas',
+            value: alerts.length > 0 ? String(alerts.length) : '—',
+            Icon: IconBell,
+            color: 'bg-primary-50 text-primary-500 ring-primary-100',
+            sub: alerts.length > 0 ? `${alerts.length} novo${alerts.length > 1 ? 's' : ''} alerta${alerts.length > 1 ? 's' : ''}` : 'Sem alertas',
+          },
         ].map(({ label, value, Icon, color, sub }) => (
           <div key={label} className="card flex items-center gap-3.5">
             <div className={['w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ring-1', color].join(' ')}>
@@ -250,31 +373,42 @@ export function Dashboard() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold text-gray-900">Alertas Importantes</h2>
-          <button className="text-xs text-primary-500 font-semibold hover:text-primary-600 flex items-center gap-1 transition-colors">
-            Ver todos <IconChevronRight />
-          </button>
+          <Link to={ROUTES.PRECOS} className="text-xs text-primary-500 font-semibold hover:text-primary-600 flex items-center gap-1 transition-colors">
+            Ver preços <IconChevronRight />
+          </Link>
         </div>
 
-        <div className="space-y-2.5">
-          {alerts.map(({ borderClass, dotClass, badgeClass, title, desc, time, badge }) => (
-            <div
-              key={title}
-              className={['bg-white rounded-2xl border border-gray-100 shadow-card border-l-4 px-4 py-3.5 flex items-start gap-3 hover:shadow-card-hover transition-all duration-150 cursor-pointer', borderClass].join(' ')}
-            >
-              <div className={['w-2 h-2 rounded-full mt-1.5 shrink-0', dotClass].join(' ')} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-0.5">
-                  <p className="text-sm font-semibold text-gray-900">{title}</p>
-                  <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0', badgeClass].join(' ')}>
-                    {badge}
-                  </span>
+        {precosLoading ? (
+          <div className="space-y-2">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="h-16 bg-gray-100 rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : alerts.length > 0 ? (
+          <div className="space-y-2.5">
+            {alerts.map(({ key, borderClass, dotClass, badgeClass, title, desc, badge }) => (
+              <div
+                key={key}
+                className={['bg-white rounded-2xl border border-gray-100 shadow-card border-l-4 px-4 py-3.5 flex items-start gap-3 hover:shadow-card-hover transition-all duration-150', borderClass].join(' ')}
+              >
+                <div className={['w-2 h-2 rounded-full mt-1.5 shrink-0', dotClass].join(' ')} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-0.5">
+                    <p className="text-sm font-semibold text-gray-900">{title}</p>
+                    <span className={['text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0', badgeClass].join(' ')}>
+                      {badge}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
                 </div>
-                <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
-                <p className="text-[10px] text-gray-300 font-medium mt-1">{time}</p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-card px-4 py-5 text-center">
+            <p className="text-sm text-gray-400">Nenhum alerta no momento. O mercado está estável.</p>
+          </div>
+        )}
       </div>
 
       {/* ── Quick access ── */}
