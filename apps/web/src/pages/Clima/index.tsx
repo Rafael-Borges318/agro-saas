@@ -1,18 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useClimaStore } from '../../store/clima.store';
 import { climaService } from '../../services/clima.service';
-import type { CityResult, CurrentWeather, ForecastDay } from '../../types';
+import type { CityFavorite, CityResult, CurrentWeather, ForecastDay, MonthlyClimate } from '../../types';
 import { CityAutocomplete } from './components/CityAutocomplete';
 import { DaySelector } from './components/DaySelector';
 import { WeatherDetailCard } from './components/WeatherDetailCard';
 import { FavoritesBar } from './components/FavoritesBar';
 
 /* ─── Date helpers ──────────────────────────────────────────────────────── */
-const MONTHS = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
-
 const DAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 function parseForecastDate(dateStr: string) {
@@ -69,6 +64,7 @@ function getRecommendations(current: CurrentWeather | null, forecast: ForecastDa
 
 function getMonthlySummary(current: CurrentWeather | null, forecast: ForecastDay[]) {
   if (!current || forecast.length === 0) return null;
+  const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const month = MONTHS[new Date().getMonth()];
   const avgTemp =
     Math.round(
@@ -101,6 +97,43 @@ function IconRefresh({ spinning }: { spinning: boolean }) {
   );
 }
 
+/* ─── Monthly climate card ──────────────────────────────────────────────── */
+const TREND_EMOJI: Record<string, string> = {
+  chuvoso: '🌧️',
+  seco: '☀️',
+  estável: '⛅',
+};
+
+const TREND_STYLE: Record<string, string> = {
+  chuvoso: 'bg-blue-100 text-blue-700',
+  seco: 'bg-orange-100 text-orange-700',
+  estável: 'bg-gray-100 text-gray-600',
+};
+
+function MonthCard({ month, isCurrent }: { month: MonthlyClimate; isCurrent: boolean }) {
+  return (
+    <div className={[
+      'flex-shrink-0 rounded-2xl p-4 flex flex-col items-center gap-1.5 min-w-[96px] transition-all',
+      isCurrent
+        ? 'bg-primary-50 border-2 border-primary-200'
+        : 'bg-white border border-gray-100 shadow-card',
+    ].join(' ')}>
+      <p className={['text-[11px] font-bold uppercase tracking-wide', isCurrent ? 'text-primary-600' : 'text-gray-400'].join(' ')}>
+        {month.mes.slice(0, 3)}
+      </p>
+      <span className="text-xl select-none">{TREND_EMOJI[month.tendencia]}</span>
+      <p className={['text-sm font-bold', isCurrent ? 'text-primary-700' : 'text-gray-900'].join(' ')}>
+        {month.tempMedia}°C
+      </p>
+      <p className="text-[10px] text-gray-400">{month.tempMin}°/{month.tempMax}°</p>
+      <p className="text-[10px] text-blue-500 font-medium">{month.precipitacaoMm}mm</p>
+      <span className={['text-[10px] font-semibold px-1.5 py-0.5 rounded-full', TREND_STYLE[month.tendencia]].join(' ')}>
+        {month.tendencia}
+      </span>
+    </div>
+  );
+}
+
 /* ─── Component ─────────────────────────────────────────────────────────── */
 export function Clima() {
   const {
@@ -110,9 +143,15 @@ export function Clima() {
     addFavorite, removeFavorite, setSelectedDayIndex,
   } = useClimaStore();
 
+  const [monthlyClimate, setMonthlyClimate] = useState<MonthlyClimate[]>([]);
+  const [monthlyLoading, setMonthlyLoading] = useState(false);
+
   const abortRef = useRef<AbortController | null>(null);
 
-  const isFavorite = favorites.includes(current?.cidade ?? cidade);
+  const isFavorite = favorites.some(
+    f => f.name === (current?.cidade ?? cidade) ||
+    (current && Math.abs(f.lat - current.lat) < 0.05 && Math.abs(f.lon - current.lon) < 0.05)
+  );
 
   async function fetchClima(query: { cidade: string } | { lat: number; lon: number; displayName: string }) {
     abortRef.current?.abort();
@@ -143,26 +182,43 @@ export function Clima() {
     }
   }
 
+  /* Geocode raw search query before fetching weather to avoid city mismatches */
+  async function handleRawSearch(query: string) {
+    const results = await climaService.searchCities(query);
+    if (results.length > 0) {
+      fetchClima({ lat: results[0].lat, lon: results[0].lon, displayName: results[0].name });
+    } else {
+      fetchClima({ cidade: query });
+    }
+  }
+
   function handleCitySelect(city: CityResult) {
     fetchClima({ lat: city.lat, lon: city.lon, displayName: city.name });
   }
 
-  function handleRawSearch(query: string) {
-    fetchClima({ cidade: query });
-  }
-
-  function handleFavoriteSelect(city: string) {
-    fetchClima({ cidade: city });
+  /* Favorites always use coordinates — no city-name ambiguity */
+  function handleFavoriteSelect(city: CityFavorite) {
+    fetchClima({ lat: city.lat, lon: city.lon, displayName: city.name });
   }
 
   function handleToggleFavorite() {
-    const cityName = current?.cidade ?? cidade;
     if (isFavorite) {
-      removeFavorite(cityName);
-    } else {
-      addFavorite(cityName);
+      removeFavorite(current?.cidade ?? cidade);
+    } else if (current) {
+      addFavorite({ name: current.cidade, lat: current.lat, lon: current.lon });
     }
   }
+
+  /* Load monthly climate data whenever the city coordinates change */
+  useEffect(() => {
+    if (current?.lat === undefined || current?.lon === undefined) return;
+    setMonthlyLoading(true);
+    climaService
+      .getMonthlyClimate(current.lat, current.lon)
+      .then(setMonthlyClimate)
+      .finally(() => setMonthlyLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.lat, current?.lon]);
 
   useEffect(() => {
     if (!current) fetchClima({ cidade });
@@ -173,6 +229,7 @@ export function Clima() {
   const alerts = getAlerts(current, forecast);
   const recommendations = getRecommendations(current, forecast);
   const summary = getMonthlySummary(current, forecast);
+  const currentMonth = new Date().getMonth() + 1;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -302,7 +359,7 @@ export function Clima() {
         </div>
       )}
 
-      {/* ── Monthly summary ───────────────────────────────────────────── */}
+      {/* ── Monthly summary (7-day aggregate) ─────────────────────────── */}
       {summary && (
         <div>
           <h2 className="text-base font-bold text-gray-900 mb-3">Resumo Mensal — {summary.month}</h2>
@@ -328,6 +385,31 @@ export function Clima() {
               <p className="text-base font-bold text-gray-700">{summary.avgHumidity}%</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Monthly climate / long-term view ──────────────────────────── */}
+      {(monthlyLoading || monthlyClimate.length > 0) && current && (
+        <div>
+          <h2 className="text-base font-bold text-gray-900 mb-1">Tendência Climatológica</h2>
+          <p className="text-xs text-gray-400 mb-3">Estimativa baseada em dados históricos — não é previsão exata.</p>
+
+          {monthlyLoading ? (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {[...Array(12)].map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-24 h-36 bg-gray-100 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div
+              className="flex gap-2 overflow-x-auto pb-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+            >
+              {monthlyClimate.map((month) => (
+                <MonthCard key={month.mesNum} month={month} isCurrent={month.mesNum === currentMonth} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

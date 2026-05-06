@@ -62,7 +62,7 @@ export function WeatherDetailCard({ current, selectedDay, isToday }: Props) {
         <div className="relative mt-5 pt-4 border-t border-white/20 grid grid-cols-4 gap-2">
           <Stat label="Sensação" value={`${current.sensacao}°C`} />
           <Stat label="Umidade" value={`${current.umidade}%`} />
-          <Stat label="Vento" value={`${current.vento} km/h`} />
+          <Stat label="Vento" value={`${current.vento} km/h${current.ventoDir ? ` ${current.ventoDir}` : ''}`} />
           <Stat label="Chuva hoje" value={`${current.chuvaAmm ?? 0}mm`} />
         </div>
       </div>

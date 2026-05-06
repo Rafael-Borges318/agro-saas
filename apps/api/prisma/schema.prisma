@@ -38,6 +38,15 @@ enum AnimalStatus {
   TRANSFERIDO
 }
 
+enum AnimalEventoTipo {
+  PESAGEM
+  VACINACAO
+  VENDA
+  DOENCA
+  REPRODUCAO
+  OBSERVACAO
+}
+
 enum CulturaStatus {
   PLANEJADA
   PLANTADA
@@ -165,9 +174,24 @@ model Animal {
   createdAt          DateTime      @default(now()) @map("created_at")
   updatedAt          DateTime      @updatedAt @map("updated_at")
 
-  propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+  propriedade Propriedade  @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+  eventos     AnimalEvento[]
 
   @@map("animais")
+}
+
+model AnimalEvento {
+  id        String           @id @default(uuid())
+  animalId  String           @map("animal_id")
+  tipo      AnimalEventoTipo
+  descricao String           @db.Text
+  data      DateTime
+  valor     Float?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  animal Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@map("animal_eventos")
 }
 
 model Cultura {
@@ -209,7 +233,6 @@ model Despesa {
   valor         Float
   data          DateTime
   categoria     TransacaoCategoria  @default(OUTROS)
-  comprovante   String?
   createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt     DateTime            @updatedAt @map("updated_at")
 
@@ -225,7 +248,6 @@ model Receita {
   valor         Float
   data          DateTime
   categoria     TransacaoCategoria  @default(VENDA_PRODUCAO)
-  comprovante   String?
   createdAt     DateTime            @default(now()) @map("created_at")
   updatedAt     DateTime            @updatedAt @map("updated_at")
 

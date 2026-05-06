@@ -1,4 +1,5 @@
 import { api } from './api';
+import { cache, TTL } from './cache';
 import type { ApiResponse, PrecoAgricola } from '../types';
 
 export interface MonthlyPrice {
@@ -82,13 +83,17 @@ function mockHistoricoResponse(produto: string, year: number): ApiResponse<Month
 
 export const precosService = {
   getLatest: async (estado?: string): Promise<ApiResponse<PrecoAgricola[]>> => {
+    const key = `precos:latest:${estado ?? 'all'}`;
+    const cached = cache.get<ApiResponse<PrecoAgricola[]>>(key);
+    if (cached) return cached;
+
     try {
       const res = await api.get<ApiResponse<PrecoAgricola[]>>('/precos/latest', {
         params: estado ? { estado } : undefined,
       });
       const data = res.data;
-      // If backend returned empty array (not yet seeded), use mock
       if (Array.isArray(data.data) && data.data.length === 0) return mockLatestResponse();
+      cache.set(key, data, TTL.PRICES);
       return data;
     } catch {
       return mockLatestResponse();

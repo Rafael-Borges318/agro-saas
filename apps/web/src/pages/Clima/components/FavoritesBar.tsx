@@ -1,8 +1,10 @@
+import type { CityFavorite } from '../../../types';
+
 interface Props {
-  favorites: string[];
+  favorites: CityFavorite[];
   currentCity: string;
   isFavorite: boolean;
-  onSelect: (city: string) => void;
+  onSelect: (city: CityFavorite) => void;
   onToggleFavorite: () => void;
 }
 
@@ -31,17 +33,17 @@ export function FavoritesBar({ favorites, currentCity, isFavorite, onSelect, onT
           <span className="text-gray-300 text-xs">|</span>
           {favorites.map((city) => (
             <button
-              key={city}
+              key={`${city.name}-${city.lat}`}
               type="button"
               onClick={() => onSelect(city)}
               className={[
                 'px-3 py-1.5 rounded-xl text-xs font-medium border transition-all duration-200',
-                city === currentCity
+                city.name === currentCity
                   ? 'bg-primary-50 border-primary-200 text-primary-700'
                   : 'bg-white border-gray-200 text-gray-600 hover:border-primary-200 hover:text-primary-600',
               ].join(' ')}
             >
-              {city}
+              {city.name}
             </button>
           ))}
         </>

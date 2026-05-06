@@ -15,11 +15,23 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
+  async (error: AxiosError) => {
     if (error.response?.status === 401) {
       localStorage.removeItem(TOKEN_KEY);
       window.location.href = '/login';
+      return Promise.reject(error);
     }
+
+    // Retry on 5xx with exponential backoff (max 2 retries: 500ms, 1000ms)
+    const config = error.config as (typeof error.config & { _retryCount?: number }) | undefined;
+    if (config && error.response && error.response.status >= 500) {
+      config._retryCount = (config._retryCount ?? 0) + 1;
+      if (config._retryCount <= 2) {
+        await new Promise((resolve) => setTimeout(resolve, config._retryCount! * 500));
+        return api(config);
+      }
+    }
+
     return Promise.reject(error);
   },
 );

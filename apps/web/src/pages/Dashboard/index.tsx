@@ -186,7 +186,10 @@ const quickLinks = [
 /* ─── Component ─── */
 export function Dashboard() {
   const user = useAuthStore((s) => s.user);
-  const { current: climaCurrent, setCurrent, setForecast, cidade: climaCidade } = useClimaStore();
+  const climaCurrent = useClimaStore((s) => s.current);
+  const climaCidade  = useClimaStore((s) => s.cidade);
+  const setCurrent   = useClimaStore((s) => s.setCurrent);
+  const setForecast  = useClimaStore((s) => s.setForecast);
 
   const [precos, setPrecos] = useState<PrecoAgricola[]>([]);
   const [precosLoading, setPrecosLoading] = useState(true);

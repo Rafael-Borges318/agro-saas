@@ -11,6 +11,7 @@ export interface CurrentWeather {
   chuva: boolean;
   chuvaAmm: number;
   vento: number;
+  ventoDir: string;
   descricao: string;
   icone: string;
   lat: number;
@@ -31,6 +32,11 @@ export interface ForecastDay {
 
 export type ClimaQuery = { cidade?: string; lat?: number; lon?: number };
 
+function degreesToCompass(deg: number): string {
+  const dirs = ['N', 'NNE', 'NE', 'ENE', 'L', 'ESE', 'SE', 'SSE', 'S', 'SSO', 'SO', 'OSO', 'O', 'ONO', 'NO', 'NNO'];
+  return dirs[Math.round(deg / 22.5) % 16];
+}
+
 /* ─── Mock fallback ─────────────────────────────────────────────────────── */
 function mockCurrent(cidade: string): CurrentWeather {
   const hour = new Date().getHours();
@@ -43,6 +49,7 @@ function mockCurrent(cidade: string): CurrentWeather {
     chuva: false,
     chuvaAmm: 0,
     vento: 14,
+    ventoDir: 'SE',
     descricao: 'parcialmente nublado',
     icone: hour >= 6 && hour < 18 ? '02d' : '02n',
     lat: -29.33,
@@ -125,6 +132,7 @@ export const climaService = {
         chuva: !!(d.rain || main === 'Rain' || main === 'Drizzle' || main === 'Thunderstorm'),
         chuvaAmm: rainMm,
         vento: Math.round(((d.wind?.speed as number) ?? 0) * 3.6),
+        ventoDir: degreesToCompass((d.wind?.deg as number) ?? 0),
         descricao: (d.weather?.[0]?.description as string) ?? '',
         icone: (d.weather?.[0]?.icon as string) ?? '',
         lat: d.coord.lat as number,
