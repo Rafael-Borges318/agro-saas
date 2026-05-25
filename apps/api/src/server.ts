@@ -9,6 +9,7 @@ import { climaJob } from './jobs/clima.job';
 import { precosJob } from './jobs/precos.job';
 import { alertasJob } from './jobs/alertas.job';
 import { notificacoesJob } from './jobs/notificacoes.job';
+import { marketplaceCrawlerJob } from './jobs/marketplace-crawler.job';
 import { precosService } from './modules/precos/precos.service';
 
 async function seedDatabase() {
@@ -118,6 +119,7 @@ async function bootstrap() {
   registerJob('precos', '0 8 * * *', precosJob);
   registerJob('alertas', '*/30 * * * *', alertasJob);
   registerJob('notificacoes', '*/10 * * * *', notificacoesJob);
+  registerJob('marketplace-crawler', '0 3 * * *', () => marketplaceCrawlerJob().then(() => {}));
 
   // Start listening FIRST so the server is immediately reachable
   const server = app.listen(env.PORT, () => {

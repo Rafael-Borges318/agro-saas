@@ -12,7 +12,7 @@ import { Clima } from '../pages/Clima';
 import { Precos } from '../pages/Precos';
 import { Financeiro } from '../pages/Financeiro';
 import { Animais } from '../pages/Animais';
-import { Marketplace } from '../pages/Marketplace';
+import { Relatorios } from '../pages/Relatorios';
 import { Admin } from '../pages/Admin';
 import { NotFound } from '../pages/NotFound';
 import { ROUTES } from '../utils/constants';
@@ -41,7 +41,7 @@ export function AppRoutes() {
           <Route path={ROUTES.PRECOS} element={<Precos />} />
           <Route path={ROUTES.FINANCEIRO} element={<Financeiro />} />
           <Route path={ROUTES.ANIMAIS} element={<Animais />} />
-          <Route path={ROUTES.MARKETPLACE} element={<Marketplace />} />
+          <Route path={ROUTES.RELATORIOS} element={<Relatorios />} />
           <Route path={ROUTES.ADMIN} element={<Admin />} />
         </Route>
 

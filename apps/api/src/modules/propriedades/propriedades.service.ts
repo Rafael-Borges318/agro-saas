@@ -1,6 +1,8 @@
 import { prisma } from '../../config/db';
 import { NotFoundError } from '../../utils/AppError';
 
+const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN']);
+
 type CreatePropriedadeDTO = {
   produtorId: string;
   nome: string;
@@ -12,6 +14,16 @@ type CreatePropriedadeDTO = {
 };
 
 export const propriedadesService = {
+  listForUser(userId: string, userRole: string) {
+    if (ADMIN_ROLES.has(userRole)) {
+      return prisma.propriedade.findMany({ orderBy: { nome: 'asc' } });
+    }
+    return prisma.propriedade.findMany({
+      where: { produtor: { userId } },
+      orderBy: { nome: 'asc' },
+    });
+  },
+
   list(produtorId?: string) {
     return prisma.propriedade.findMany({
       where: produtorId ? { produtorId } : undefined,

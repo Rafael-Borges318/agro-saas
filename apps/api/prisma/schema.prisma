@@ -75,11 +75,32 @@ enum NotificacaoTipo {
   SISTEMA
 }
 
+enum ReproducaoStatus {
+  PRENHA
+  PARTO_REALIZADO
+  VAZIA
+}
+
 enum MarketplaceStatus {
   ATIVO
   INATIVO
   VENDIDO
   REMOVIDO
+}
+
+enum MarketplaceCategoria {
+  INSUMOS
+  MAQUINARIOS
+  PECUARIA
+  GRAOS
+  FERTILIZANTES
+  FERRAMENTAS
+  SERVICOS
+  SEMENTES
+  RACAO
+  IRRIGACAO
+  HORTIFRUTI
+  EQUIPAMENTOS
 }
 
 enum PlanStatus {
@@ -112,6 +133,7 @@ model User {
   produtor      Produtor?
   notificacoes  Notificacao[]
   subscription  Subscription?
+  favoritos     MarketplaceFavorito[]
 
   @@map("users")
 }
@@ -131,8 +153,9 @@ model Produtor {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  propriedades Propriedade[]
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  propriedades       Propriedade[]
+  marketplaceProducts MarketplaceProduct[]
 
   @@map("produtores")
 }
@@ -175,7 +198,13 @@ model Animal {
   updatedAt          DateTime      @updatedAt @map("updated_at")
 
   propriedade Propriedade  @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
-  eventos     AnimalEvento[]
+  eventos             AnimalEvento[]
+  vacinas             Vacina[]
+  pesagens            Pesagem[]
+  reproducoes         Reproducao[]  @relation("matriz")
+  reproducoesParceiro Reproducao[]  @relation("parceiro")
+  despesas            Despesa[]
+  receitas            Receita[]
 
   @@map("animais")
 }
@@ -192,6 +221,51 @@ model AnimalEvento {
   animal Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
 
   @@map("animal_eventos")
+}
+
+model Vacina {
+  id            String    @id @default(uuid())
+  animalId      String    @map("animal_id")
+  nomeVacina    String    @map("nome_vacina")
+  dataAplicacao DateTime  @map("data_aplicacao")
+  proximaDose   DateTime? @map("proxima_dose")
+  observacoes   String?   @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  animal Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@map("vacinas")
+}
+
+model Pesagem {
+  id          String   @id @default(uuid())
+  animalId    String   @map("animal_id")
+  pesoKg      Float    @map("peso_kg")
+  dataPesagem DateTime @map("data_pesagem")
+  observacoes String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  animal Animal @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@map("pesagens")
+}
+
+model Reproducao {
+  id                String           @id @default(uuid())
+  animalId          String           @map("animal_id")
+  parceiroId        String?          @map("parceiro_id")
+  dataCobertura     DateTime         @map("data_cobertura")
+  dataPrevistaParto DateTime?        @map("data_prevista_parto")
+  dataPartoReal     DateTime?        @map("data_parto_real")
+  quantidadeFilhos  Int?             @map("quantidade_filhos")
+  observacoes       String?          @db.Text
+  status            ReproducaoStatus @default(PRENHA)
+  createdAt         DateTime         @default(now()) @map("created_at")
+
+  animal   Animal  @relation("matriz",   fields: [animalId],   references: [id], onDelete: Cascade)
+  parceiro Animal? @relation("parceiro", fields: [parceiroId], references: [id], onDelete: SetNull)
+
+  @@map("reproducao")
 }
 
 model Cultura {
@@ -229,6 +303,7 @@ model PrecoAgricola {
 model Despesa {
   id            String              @id @default(uuid())
   propriedadeId String              @map("propriedade_id")
+  animalId      String?             @map("animal_id")
   descricao     String
   valor         Float
   data          DateTime
@@ -237,6 +312,7 @@ model Despesa {
   updatedAt     DateTime            @updatedAt @map("updated_at")
 
   propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+  animal      Animal?     @relation(fields: [animalId], references: [id], onDelete: SetNull)
 
   @@map("despesas")
 }
@@ -244,6 +320,7 @@ model Despesa {
 model Receita {
   id            String              @id @default(uuid())
   propriedadeId String              @map("propriedade_id")
+  animalId      String?             @map("animal_id")
   descricao     String
   valor         Float
   data          DateTime
@@ -252,6 +329,7 @@ model Receita {
   updatedAt     DateTime            @updatedAt @map("updated_at")
 
   propriedade Propriedade @relation(fields: [propriedadeId], references: [id], onDelete: Cascade)
+  animal      Animal?     @relation(fields: [animalId], references: [id], onDelete: SetNull)
 
   @@map("receitas")
 }
@@ -285,19 +363,59 @@ model Notificacao {
 }
 
 model MarketplaceProduct {
-  id          String            @id @default(uuid())
-  produtorId  String            @map("produtor_id")
-  titulo      String
-  descricao   String            @db.Text
-  preco       Float
-  quantidade  Float
-  unidade     String            @default("un")
-  imageUrl    String?           @map("image_url")
-  status      MarketplaceStatus @default(ATIVO)
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
+  id               String               @id @default(uuid())
+  produtorId       String               @map("produtor_id")
+  titulo           String
+  descricao        String               @db.Text
+  categoria        MarketplaceCategoria @default(INSUMOS)
+  preco            Float
+  precoNegociavel  Boolean              @default(false) @map("preco_negociavel")
+  quantidade       Float
+  unidade          String               @default("un")
+  cidade           String?
+  estado           String?              @db.Char(2)
+  imageUrl         String?              @map("image_url")
+  imagensExtra     String[]             @map("imagens_extra")
+  externalUrl      String?              @map("external_url")
+  contatoWhatsapp  String?              @map("contato_whatsapp")
+  contatoEmail     String?              @map("contato_email")
+  contatoTelefone  String?              @map("contato_telefone")
+  destaque         Boolean              @default(false)
+  visualizacoes    Int                  @default(0)
+  status           MarketplaceStatus    @default(ATIVO)
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  produtor  Produtor              @relation(fields: [produtorId], references: [id], onDelete: Cascade)
+  favoritos MarketplaceFavorito[]
+  contatos  MarketplaceContato[]
 
   @@map("marketplace_products")
+}
+
+model MarketplaceFavorito {
+  id        String   @id @default(uuid())
+  produtoId String   @map("produto_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  produto MarketplaceProduct @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([produtoId, userId])
+  @@map("marketplace_favoritos")
+}
+
+model MarketplaceContato {
+  id        String   @id @default(uuid())
+  produtoId String   @map("produto_id")
+  userId    String?  @map("user_id")
+  tipo      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  produto MarketplaceProduct @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@map("marketplace_contatos")
 }
 
 model Plan {

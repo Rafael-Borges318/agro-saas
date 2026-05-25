@@ -12,7 +12,7 @@ export const ROUTES = {
   PRECOS: '/precos',
   FINANCEIRO: '/financeiro',
   ANIMAIS: '/animais',
-  MARKETPLACE: '/marketplace',
+  RELATORIOS: '/relatorios',
   ADMIN: '/admin',
 } as const;
 

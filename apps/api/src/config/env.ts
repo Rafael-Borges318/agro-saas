@@ -14,6 +14,9 @@ const envSchema = z.object({
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_PASSWORD: z.string().min(6).optional(),
   OPENWEATHER_API_KEY: z.string().optional(),
+  // ID do Produtor sistema usado pelo marketplace crawler.
+  // Crie um user "Agro Controle Bot" (role ADMIN) + Produtor vinculado e cole o Produtor.id aqui.
+  CRAWLER_PRODUTOR_ID: z.string().uuid('CRAWLER_PRODUTOR_ID deve ser um UUID válido').optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

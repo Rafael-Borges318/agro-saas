@@ -26,6 +26,20 @@ export function authenticate(req: AuthenticatedRequest, _res: Response, next: Ne
   }
 }
 
+export function optionalAuthenticate(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const payload = verifyToken(authHeader.split(' ')[1]);
+      req.userId   = payload.sub;
+      req.userRole = payload.role;
+    } catch {
+      // invalid token — proceed as unauthenticated
+    }
+  }
+  next();
+}
+
 export function requireRole(...roles: string[]) {
   return (req: AuthenticatedRequest, _res: Response, next: NextFunction): void => {
     if (!req.userRole || !roles.includes(req.userRole)) {

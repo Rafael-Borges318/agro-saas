@@ -34,12 +34,12 @@ interface AnimaisState {
   fetchList: () => Promise<void>;
   fetchAll: () => Promise<void>;
 
-  createAnimal: (data: CreateAnimalData) => Promise<void>;
-  updateAnimal: (id: string, data: Partial<CreateAnimalData>) => Promise<void>;
+  createAnimal: (data: CreateAnimalData) => Promise<boolean>;
+  updateAnimal: (id: string, data: Partial<CreateAnimalData>) => Promise<boolean>;
   removeAnimal: (id: string) => Promise<void>;
 
   loadEventos: (animalId: string) => Promise<void>;
-  addEvento: (animalId: string, data: CreateEventoData) => Promise<void>;
+  addEvento: (animalId: string, data: CreateEventoData) => Promise<boolean>;
 
   selectAnimal: (id: string | null) => void;
   setFilter: <K extends keyof Filters>(key: K, value: Filters[K]) => void;
@@ -55,7 +55,17 @@ const DEFAULT_FILTERS: Filters = {
 
 function extractError(err: unknown): string {
   if (err && typeof err === 'object' && 'response' in err) {
-    const r = (err as { response?: { data?: { message?: string } } }).response;
+    const r = (err as {
+      response?: {
+        status?: number;
+        data?: { message?: string; errors?: Record<string, string[]> };
+      };
+    }).response;
+    if (r?.status === 429) return 'Limite de requisições atingido. Aguarde e tente novamente.';
+    if (r?.data?.errors) {
+      const first = Object.values(r.data.errors).flat().find(Boolean);
+      if (first) return first;
+    }
     if (r?.data?.message) return r.data.message;
   }
   return 'Ocorreu um erro. Tente novamente.';
@@ -113,8 +123,10 @@ export const useAnimaisStore = create<AnimaisState>((set, get) => ({
         successMessage: 'Animal cadastrado com sucesso!',
       }));
       get().fetchStats();
+      return true;
     } catch (err) {
       set((s) => ({ error: extractError(err), loading: { ...s.loading, submitting: false } }));
+      return false;
     }
   },
 
@@ -128,8 +140,10 @@ export const useAnimaisStore = create<AnimaisState>((set, get) => ({
         successMessage: 'Animal atualizado com sucesso!',
       }));
       get().fetchStats();
+      return true;
     } catch (err) {
       set((s) => ({ error: extractError(err), loading: { ...s.loading, submitting: false } }));
+      return false;
     }
   },
 
@@ -178,8 +192,10 @@ export const useAnimaisStore = create<AnimaisState>((set, get) => ({
       // Re-fetch list to pick up updated pesoKg / status
       get().fetchList();
       get().fetchStats();
+      return true;
     } catch (err) {
       set((s) => ({ error: extractError(err), loading: { ...s.loading, addingEvento: null } }));
+      return false;
     }
   },
 

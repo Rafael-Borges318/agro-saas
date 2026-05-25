@@ -160,6 +160,7 @@ export const animaisService = {
         await prisma.receita.create({
           data: {
             propriedadeId: animal.propriedadeId,
+            animalId:      animalId,
             descricao:     data.descricao,
             valor:         data.valor,
             data:          data.data,

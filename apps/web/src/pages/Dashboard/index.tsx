@@ -180,7 +180,7 @@ const quickLinks = [
   { Icon: IconDollar, label: 'Financeiro', path: ROUTES.FINANCEIRO,  bg: 'bg-amber-50',    text: 'text-amber-600' },
   { Icon: IconCow,    label: 'Rebanho',    path: ROUTES.ANIMAIS,     bg: 'bg-orange-50',   text: 'text-orange-600' },
   { Icon: IconLeaf,   label: 'Culturas',   path: '#',                bg: 'bg-lime-50',     text: 'text-lime-700' },
-  { Icon: IconStore,  label: 'Marketplace',path: ROUTES.MARKETPLACE, bg: 'bg-rose-50',     text: 'text-rose-600' },
+  { Icon: IconStore,  label: 'Relatórios', path: ROUTES.RELATORIOS,  bg: 'bg-rose-50',     text: 'text-rose-600' },
 ];
 
 /* ─── Component ─── */

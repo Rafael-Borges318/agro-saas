@@ -172,6 +172,21 @@ export interface Notificacao {
   criadoEm: string;
 }
 
+// ─── Propriedades ─────────────────────────────────────────────────────────────
+
+export interface Propriedade {
+  id: string;
+  produtorId: string;
+  nome: string;
+  areaHectares: number;
+  municipio: string;
+  estado: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Animais ──────────────────────────────────────────────────────────────────
 
 export type AnimalEspecie = 'BOVINO' | 'SUINO' | 'AVICOLA' | 'OVINO' | 'CAPRINO' | 'EQUINO' | 'OUTRO';
@@ -240,3 +255,211 @@ export interface ListAnimaisFilters {
   orderBy?: 'nome' | 'pesoKg' | 'dataNascimento' | 'createdAt';
   order?: 'asc' | 'desc';
 }
+
+// ─── Vacinas ──────────────────────────────────────────────────────────────────
+
+export interface Vacina {
+  id: string;
+  animalId: string;
+  nomeVacina: string;
+  dataAplicacao: string;
+  proximaDose?: string | null;
+  observacoes?: string | null;
+  createdAt: string;
+}
+
+export interface CreateVacinaData {
+  nomeVacina: string;
+  dataAplicacao: string;
+  proximaDose?: string;
+  observacoes?: string;
+}
+
+export type UpdateVacinaData = Partial<CreateVacinaData>;
+
+// ─── Pesagens ─────────────────────────────────────────────────────────────────
+
+export interface Pesagem {
+  id: string;
+  animalId: string;
+  pesoKg: number;
+  dataPesagem: string;
+  observacoes?: string | null;
+  createdAt: string;
+}
+
+export interface CreatePesagemData {
+  pesoKg: number;
+  dataPesagem: string;
+  observacoes?: string;
+  atualizarPeso?: boolean;
+}
+
+// ─── Reprodução ───────────────────────────────────────────────────────────────
+
+export type ReproducaoStatus = 'PRENHA' | 'PARTO_REALIZADO' | 'VAZIA';
+
+export interface Reproducao {
+  id: string;
+  animalId: string;
+  dataCobertura: string;
+  dataPrevistaParto?: string | null;
+  dataPartoReal?: string | null;
+  parceiroId?: string | null;
+  parceiro?: {
+    id: string;
+    nome?: string | null;
+    numeroIdentificacao?: string | null;
+    especie: string;
+  } | null;
+  quantidadeFilhos?: number | null;
+  observacoes?: string | null;
+  status: ReproducaoStatus;
+  createdAt: string;
+}
+
+export interface CreateReproducaoData {
+  dataCobertura: string;
+  dataPrevistaParto?: string;
+  dataPartoReal?: string;
+  parceiroId?: string;
+  quantidadeFilhos?: number;
+  observacoes?: string;
+  status?: ReproducaoStatus;
+}
+
+export type UpdateReproducaoData = Partial<CreateReproducaoData>;
+
+// ─── Upcoming alerts ──────────────────────────────────────────────────────────
+
+export interface VacinaUpcoming extends Vacina {
+  animal: {
+    id: string;
+    nome?: string | null;
+    numeroIdentificacao?: string | null;
+    especie: string;
+  };
+}
+
+export interface ReproducaoUpcoming extends Reproducao {
+  animal: {
+    id: string;
+    nome?: string | null;
+    numeroIdentificacao?: string | null;
+    especie: string;
+  };
+}
+
+// ─── Marketplace ──────────────────────────────────────────────────────────────
+
+export type MarketplaceCategoria =
+  | 'INSUMOS'
+  | 'MAQUINARIOS'
+  | 'PECUARIA'
+  | 'GRAOS'
+  | 'FERTILIZANTES'
+  | 'FERRAMENTAS'
+  | 'SERVICOS'
+  | 'SEMENTES'
+  | 'RACAO'
+  | 'IRRIGACAO'
+  | 'HORTIFRUTI'
+  | 'EQUIPAMENTOS';
+
+export type MarketplaceStatus = 'ATIVO' | 'INATIVO' | 'VENDIDO' | 'REMOVIDO';
+
+export interface MarketplaceProduct {
+  id: string;
+  titulo: string;
+  descricao: string;
+  categoria: MarketplaceCategoria;
+  preco: number;
+  precoNegociavel: boolean;
+  quantidade: number;
+  unidade: string;
+  cidade?: string | null;
+  estado?: string | null;
+  imageUrl?: string | null;
+  imagensExtra: string[];
+  externalUrl?: string | null;
+  contatoWhatsapp?: string | null;
+  contatoEmail?: string | null;
+  contatoTelefone?: string | null;
+  destaque: boolean;
+  visualizacoes: number;
+  status: MarketplaceStatus;
+  produtorId: string;
+  produtor: {
+    id: string;
+    cidade?: string | null;
+    estado?: string | null;
+    user: { name: string };
+  };
+  _count: { favoritos: number };
+  isFavorito?: boolean;
+  relacionados?: MarketplaceProduct[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketplaceFilters {
+  search?: string;
+  categoria?: MarketplaceCategoria;
+  estado?: string;
+  cidade?: string;
+  precoMin?: number;
+  precoMax?: number;
+  orderBy?: 'recente' | 'preco_asc' | 'preco_desc' | 'visualizacoes';
+  page?: number;
+  limit?: number;
+}
+
+export interface MarketplaceListResult {
+  data: MarketplaceProduct[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface MarketplacePublicStats {
+  totalProdutos: number;
+  totalProdutores: number;
+  totalEstados: number;
+}
+
+export interface MarketplaceCategoryCount {
+  categoria: MarketplaceCategoria;
+  total: number;
+}
+
+export interface MarketplaceMyStats {
+  ativos: number;
+  inativos: number;
+  vendidos: number;
+  totalViews: number;
+  totalFavoritos: number;
+  totalContatos: number;
+}
+
+export interface CreateMarketplaceData {
+  titulo: string;
+  descricao: string;
+  categoria: MarketplaceCategoria;
+  preco: number;
+  precoNegociavel?: boolean;
+  quantidade: number;
+  unidade?: string;
+  cidade?: string;
+  estado?: string;
+  imageUrl?: string;
+  imagensExtra?: string[];
+  externalUrl?: string;
+  contatoWhatsapp?: string;
+  contatoEmail?: string;
+  contatoTelefone?: string;
+}
+
+export type UpdateMarketplaceData = Partial<CreateMarketplaceData>;
