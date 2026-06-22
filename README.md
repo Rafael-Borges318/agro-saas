@@ -4,6 +4,38 @@
 
 ---
 
+## Screenshots
+
+### Landing Page & Autenticação
+
+| Tela Inicial | Planos | Login |
+|:---:|:---:|:---:|
+| ![Tela Inicial](docs/screenshots/telaInicial.png) | ![Planos](docs/screenshots/planos.png) | ![Login](docs/screenshots/login.png) |
+
+### Painel Principal
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Clima & Mercado
+
+| Previsão do Tempo | Preços de Mercado | Gráfico de Mercado |
+|:---:|:---:|:---:|
+| ![Clima](docs/screenshots/clima.png) | ![Mercado](docs/screenshots/mercado.png) | ![Gráfico Mercado](docs/screenshots/graficoMercado.png) |
+
+### Gestão da Fazenda
+
+| Financeiro | Rebanho | Status do Rebanho |
+|:---:|:---:|:---:|
+| ![Financeiro](docs/screenshots/financeiro.png) | ![Rebanho](docs/screenshots/rebanho.png) | ![Status Rebanho](docs/screenshots/statusRebanho.png) |
+
+### Relatórios & Marketplace
+
+| Relatórios | Marketplace |
+|:---:|:---:|
+| ![Relatórios](docs/screenshots/relatorio.png) | ![Marketplace](docs/screenshots/marketplace.png) |
+
+---
+
 ## Visão Geral
 
 O **Agro Controle** nasceu como um projeto de portfólio que simula um produto real de mercado voltado ao agronegócio brasileiro. A ideia é centralizar em um único painel tudo que um produtor rural precisa acompanhar no dia a dia: o tempo, os preços das commodities, as finanças da fazenda, o rebanho e um marketplace para compra e venda de insumos.
