@@ -5,7 +5,9 @@ import { prisma } from '../../config/db';
 import { ForbiddenError } from '../../utils/AppError';
 
 async function resolveProdutorId(userId: string): Promise<string> {
+  console.log('[DEBUG] userId recebido:', userId);
   const p = await prisma.produtor.findUnique({ where: { userId }, select: { id: true } });
+  console.log('[DEBUG] produtor encontrado:', p);
   if (!p) throw new ForbiddenError('Perfil de produtor não encontrado. Conclua o onboarding primeiro.');
   return p.id;
 }
@@ -35,14 +37,14 @@ export const relatoriosController = {
     try {
       const produtorId = await resolveProdutorId(req.userId!);
       const mes = typeof req.query.mes === 'string' ? req.query.mes : undefined;
-      res.json({ status: 'success', data: await relatoriosService.gerarRelatorioFinanceiro(produtorId, mes) });
+      res.json({ status: 'success', data: await relatoriosService.gerarRelatorioFinanceiro(produtorId, mes, req.userRole) });
     } catch (e) { next(e); }
   },
 
   async rebanho(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const produtorId = await resolveProdutorId(req.userId!);
-      res.json({ status: 'success', data: await relatoriosService.gerarRelatorioRebanho(produtorId) });
+      res.json({ status: 'success', data: await relatoriosService.gerarRelatorioRebanho(produtorId, req.userRole) });
     } catch (e) { next(e); }
   },
 };

@@ -13,6 +13,7 @@ import { Precos } from '../pages/Precos';
 import { Financeiro } from '../pages/Financeiro';
 import { Animais } from '../pages/Animais';
 import { Relatorios } from '../pages/Relatorios';
+import { Marketplace } from '../pages/Marketplace';
 import { Admin } from '../pages/Admin';
 import { NotFound } from '../pages/NotFound';
 import { ROUTES } from '../utils/constants';
@@ -42,6 +43,7 @@ export function AppRoutes() {
           <Route path={ROUTES.FINANCEIRO} element={<Financeiro />} />
           <Route path={ROUTES.ANIMAIS} element={<Animais />} />
           <Route path={ROUTES.RELATORIOS} element={<Relatorios />} />
+          <Route path={ROUTES.MARKETPLACE} element={<Marketplace />} />
           <Route path={ROUTES.ADMIN} element={<Admin />} />
         </Route>
 

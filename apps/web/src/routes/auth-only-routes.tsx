@@ -5,7 +5,9 @@ import { ROUTES } from '../utils/constants';
 // Auth required, but does NOT enforce onboarding completion.
 // Used for /onboarding and /planos so users can complete these steps.
 export function AuthOnlyRoutes() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { isAuthenticated, _hasHydrated } = useAuthStore();
+
+  if (!_hasHydrated) return null;
 
   if (!isAuthenticated) {
     return <Navigate to={ROUTES.LOGIN} replace />;

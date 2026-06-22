@@ -60,6 +60,16 @@ function IconRelatorios() {
   );
 }
 
+function IconMarketplace() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <path d="M16 10a4 4 0 01-8 0" />
+    </svg>
+  );
+}
+
 function IconAdmin() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
@@ -70,12 +80,13 @@ function IconAdmin() {
 }
 
 const navItems = [
-  { label: 'Dashboard',  Icon: IconDashboard,  path: ROUTES.DASHBOARD },
-  { label: 'Clima',      Icon: IconClima,       path: ROUTES.CLIMA },
-  { label: 'Mercado',    Icon: IconPrecos,      path: ROUTES.PRECOS },
-  { label: 'Financeiro', Icon: IconFinanceiro,  path: ROUTES.FINANCEIRO },
-  { label: 'Rebanho',    Icon: IconAnimais,     path: ROUTES.ANIMAIS },
-  { label: 'Relatórios', Icon: IconRelatorios,  path: ROUTES.RELATORIOS },
+  { label: 'Dashboard',   Icon: IconDashboard,    path: ROUTES.DASHBOARD },
+  { label: 'Clima',       Icon: IconClima,         path: ROUTES.CLIMA },
+  { label: 'Mercado',     Icon: IconPrecos,        path: ROUTES.PRECOS },
+  { label: 'Financeiro',  Icon: IconFinanceiro,    path: ROUTES.FINANCEIRO },
+  { label: 'Rebanho',     Icon: IconAnimais,       path: ROUTES.ANIMAIS },
+  { label: 'Relatórios',  Icon: IconRelatorios,    path: ROUTES.RELATORIOS },
+  { label: 'Marketplace', Icon: IconMarketplace,   path: ROUTES.MARKETPLACE },
 ];
 
 function NavItem({

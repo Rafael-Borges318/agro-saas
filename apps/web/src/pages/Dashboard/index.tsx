@@ -4,8 +4,10 @@ import { useAuthStore } from '../../store/auth.store';
 import { useClimaStore } from '../../store/clima.store';
 import { precosService } from '../../services/precos.service';
 import { climaService } from '../../services/clima.service';
+import { animaisService } from '../../services/animais.service';
+import { financeiroService } from '../../services/financeiro.service';
 import { ROUTES } from '../../utils/constants';
-import type { PrecoAgricola } from '../../types';
+import type { PrecoAgricola, AnimalStats, ResumoFinanceiro } from '../../types';
 
 /* ─── Icons ─── */
 function IconChevronRight() {
@@ -116,6 +118,12 @@ function formatDate(d: Date) {
 function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function formatBRLCompact(v: number) {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) return `${v < 0 ? '-' : ''}R$ ${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000)     return `${v < 0 ? '-' : ''}R$ ${(abs / 1_000).toFixed(1)}k`;
+  return `R$ ${formatBRL(v)}`;
+}
 
 /* ─── Derived alerts from real data ─── */
 interface Alert {
@@ -179,9 +187,14 @@ const quickLinks = [
   { Icon: IconChart,  label: 'Mercado',    path: ROUTES.PRECOS,      bg: 'bg-emerald-50',  text: 'text-emerald-600' },
   { Icon: IconDollar, label: 'Financeiro', path: ROUTES.FINANCEIRO,  bg: 'bg-amber-50',    text: 'text-amber-600' },
   { Icon: IconCow,    label: 'Rebanho',    path: ROUTES.ANIMAIS,     bg: 'bg-orange-50',   text: 'text-orange-600' },
-  { Icon: IconLeaf,   label: 'Culturas',   path: '#',                bg: 'bg-lime-50',     text: 'text-lime-700' },
-  { Icon: IconStore,  label: 'Relatórios', path: ROUTES.RELATORIOS,  bg: 'bg-rose-50',     text: 'text-rose-600' },
+  { Icon: IconLeaf,   label: 'Relatórios', path: ROUTES.RELATORIOS,  bg: 'bg-lime-50',     text: 'text-lime-700' },
+  { Icon: IconStore,  label: 'Marketplace',path: ROUTES.MARKETPLACE, bg: 'bg-rose-50',     text: 'text-rose-600' },
 ];
+
+/* ─── Stat card skeleton ─── */
+function StatSkeleton() {
+  return <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />;
+}
 
 /* ─── Component ─── */
 export function Dashboard() {
@@ -191,9 +204,15 @@ export function Dashboard() {
   const setCurrent   = useClimaStore((s) => s.setCurrent);
   const setForecast  = useClimaStore((s) => s.setForecast);
 
-  const [precos, setPrecos] = useState<PrecoAgricola[]>([]);
+  const [precos, setPrecos]           = useState<PrecoAgricola[]>([]);
   const [precosLoading, setPrecosLoading] = useState(true);
-  const [climaLoading, setClimaLoading] = useState(false);
+  const [climaLoading, setClimaLoading]   = useState(false);
+
+  const [animalStats, setAnimalStats]     = useState<AnimalStats | null>(null);
+  const [animalLoading, setAnimalLoading] = useState(true);
+
+  const [resumo, setResumo]               = useState<ResumoFinanceiro | null>(null);
+  const [resumoLoading, setResumoLoading] = useState(true);
 
   const now = new Date();
   const hour = now.getHours();
@@ -226,8 +245,31 @@ export function Dashboard() {
       .finally(() => setClimaLoading(false));
   }, [climaCurrent, climaCidade, setCurrent, setForecast]);
 
+  // Fetch animal stats
+  useEffect(() => {
+    setAnimalLoading(true);
+    animaisService
+      .stats()
+      .then((s) => setAnimalStats(s))
+      .catch(() => setAnimalStats(null))
+      .finally(() => setAnimalLoading(false));
+  }, []);
+
+  // Fetch financial summary
+  useEffect(() => {
+    setResumoLoading(true);
+    financeiroService
+      .resumo()
+      .then((r) => setResumo(r.data.data))
+      .catch(() => setResumo(null))
+      .finally(() => setResumoLoading(false));
+  }, []);
+
   const soja = precos.find((p) => p.produto.toLowerCase() === 'soja');
   const alerts = buildAlerts(precos, climaCurrent?.chuva ?? false, climaCurrent?.cidade ?? climaCidade);
+
+  const lucroMes = resumo?.lucroMes ?? null;
+  const lucroPositivo = lucroMes !== null && lucroMes >= 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -347,29 +389,73 @@ export function Dashboard() {
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: 'Animais ativos', value: '—', Icon: IconCow,    color: 'bg-orange-50 text-orange-500 ring-orange-100', sub: 'Conecte sua propriedade' },
-          { label: 'Saldo do mês',   value: '—', Icon: IconWallet, color: 'bg-amber-50 text-amber-500 ring-amber-100',   sub: 'Configure o financeiro' },
-          { label: 'Culturas',       value: '—', Icon: IconLeaf,   color: 'bg-lime-50 text-lime-600 ring-lime-100',      sub: 'Adicione uma cultura' },
-          {
-            label: 'Alertas',
-            value: alerts.length > 0 ? String(alerts.length) : '—',
-            Icon: IconBell,
-            color: 'bg-primary-50 text-primary-500 ring-primary-100',
-            sub: alerts.length > 0 ? `${alerts.length} novo${alerts.length > 1 ? 's' : ''} alerta${alerts.length > 1 ? 's' : ''}` : 'Sem alertas',
-          },
-        ].map(({ label, value, Icon, color, sub }) => (
-          <div key={label} className="card flex items-center gap-3.5">
-            <div className={['w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ring-1', color].join(' ')}>
-              <Icon />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs text-gray-400 font-medium truncate">{label}</p>
-              <p className="text-xl font-bold text-gray-900 leading-none my-0.5">{value}</p>
-              <p className="text-xs text-gray-400 truncate">{sub}</p>
-            </div>
+        {/* Animais ativos */}
+        <Link to={ROUTES.ANIMAIS} className="card flex items-center gap-3.5 hover:shadow-card-hover transition-shadow">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ring-1 bg-orange-50 text-orange-500 ring-orange-100">
+            <IconCow />
           </div>
-        ))}
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 font-medium truncate">Animais ativos</p>
+            <p className="text-xl font-bold text-gray-900 leading-none my-0.5">
+              {animalLoading ? <StatSkeleton /> : animalStats !== null ? animalStats.ativos : '—'}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              {animalStats !== null && !animalLoading
+                ? `${animalStats.total} no total`
+                : 'Rebanho'}
+            </p>
+          </div>
+        </Link>
+
+        {/* Saldo do mês */}
+        <Link to={ROUTES.FINANCEIRO} className="card flex items-center gap-3.5 hover:shadow-card-hover transition-shadow">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ring-1 bg-amber-50 text-amber-500 ring-amber-100">
+            <IconWallet />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 font-medium truncate">Saldo do mês</p>
+            <p className={['text-xl font-bold leading-none my-0.5', lucroMes !== null && !resumoLoading ? (lucroPositivo ? 'text-emerald-600' : 'text-red-600') : 'text-gray-900'].join(' ')}>
+              {resumoLoading ? <StatSkeleton /> : lucroMes !== null ? formatBRLCompact(lucroMes) : '—'}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              {resumo !== null && !resumoLoading
+                ? `Rec: ${formatBRLCompact(resumo.receitasMes)}`
+                : 'Financeiro'}
+            </p>
+          </div>
+        </Link>
+
+        {/* Alertas */}
+        <Link to={ROUTES.PRECOS} className="card flex items-center gap-3.5 hover:shadow-card-hover transition-shadow">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ring-1 bg-primary-50 text-primary-500 ring-primary-100">
+            <IconBell />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 font-medium truncate">Alertas</p>
+            <p className="text-xl font-bold text-gray-900 leading-none my-0.5">
+              {precosLoading ? <StatSkeleton /> : alerts.length > 0 ? alerts.length : '—'}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              {alerts.length > 0 ? `${alerts.length} novo${alerts.length > 1 ? 's' : ''}` : 'Sem alertas'}
+            </p>
+          </div>
+        </Link>
+
+        {/* Relatórios */}
+        <Link to={ROUTES.RELATORIOS} className="card flex items-center gap-3.5 hover:shadow-card-hover transition-shadow">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ring-1 bg-lime-50 text-lime-600 ring-lime-100">
+            <IconLeaf />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 font-medium truncate">Relatórios</p>
+            <p className="text-xl font-bold text-gray-900 leading-none my-0.5">
+              {resumoLoading ? <StatSkeleton /> : resumo !== null ? formatBRLCompact(resumo.saldo) : '—'}
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              {resumo !== null && !resumoLoading ? 'Saldo acumulado' : 'Ver análises'}
+            </p>
+          </div>
+        </Link>
       </div>
 
       {/* ── Alerts ── */}

@@ -231,6 +231,15 @@ export const precosService = {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const alreadySeeded = await prisma.precoAgricola.findFirst({
+      where: { data: { gte: today } },
+      select: { id: true },
+    });
+    if (alreadySeeded) {
+      logger.debug('[precos] Preços de hoje já existem, pulando seed diário.');
+      return;
+    }
+
     const recent = await prisma.precoAgricola.findMany({
       where: { data: { lt: today } },
       orderBy: { data: 'desc' },

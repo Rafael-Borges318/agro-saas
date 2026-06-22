@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import jsPDF from 'jspdf';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../services/api';
+import { AxiosError } from 'axios';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -73,77 +74,16 @@ function currentMonth() {
   return new Date().toISOString().slice(0, 7);
 }
 
-/* ─── PDF helpers ────────────────────────────────────────────────────────── */
-
-function pdfHeader(doc: jsPDF, title: string, subtitle: string) {
-  doc.setFontSize(18);
-  doc.setTextColor(30, 80, 160);
-  doc.text(title, 14, 20);
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(subtitle, 14, 28);
-  doc.setTextColor(0, 0, 0);
-  doc.line(14, 32, 196, 32);
-  return 38;
-}
-
-function pdfSummaryCards(
-  doc: jsPDF,
-  y: number,
-  cards: { label: string; value: string }[],
-): number {
-  doc.setFontSize(9);
-  const colW = 55;
-  cards.forEach((c, i) => {
-    const x = 14 + i * (colW + 5);
-    doc.setFillColor(245, 248, 255);
-    doc.roundedRect(x, y, colW, 18, 2, 2, 'F');
-    doc.setFontSize(7);
-    doc.setTextColor(100, 100, 100);
-    doc.text(c.label, x + 4, y + 6);
-    doc.setFontSize(10);
-    doc.setTextColor(30, 80, 160);
-    doc.text(c.value, x + 4, y + 14);
-  });
-  doc.setTextColor(0, 0, 0);
-  return y + 26;
-}
-
-function pdfTableHeader(doc: jsPDF, y: number, cols: string[], colWidths: number[]) {
-  doc.setFillColor(30, 80, 160);
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  let x = 14;
-  doc.rect(14, y, colWidths.reduce((a, b) => a + b, 0), 7, 'F');
-  cols.forEach((col, i) => {
-    doc.text(col, x + 2, y + 5);
-    x += colWidths[i];
-  });
-  doc.setTextColor(0, 0, 0);
-  return y + 7;
-}
-
-function pdfTableRow(
-  doc: jsPDF,
-  y: number,
-  cells: string[],
-  colWidths: number[],
-  odd: boolean,
-) {
-  if (odd) {
-    doc.setFillColor(248, 250, 255);
-    doc.rect(14, y, colWidths.reduce((a, b) => a + b, 0), 6, 'F');
+function extractErrorMessage(err: unknown): { message: string; is403: boolean } {
+  if (err instanceof AxiosError) {
+    const status = err.response?.status;
+    const msg = (err.response?.data as { message?: string })?.message ?? err.message;
+    return { message: msg, is403: status === 403 };
   }
-  doc.setFontSize(8);
-  let x = 14;
-  cells.forEach((cell, i) => {
-    doc.text(cell, x + 2, y + 4.5);
-    x += colWidths[i];
-  });
-  return y + 6;
+  return { message: 'Erro desconhecido', is403: false };
 }
 
-/* ─── Summary Card ───────────────────────────────────────────────────────── */
+/* ─── Sub-components ─────────────────────────────────────────────────────── */
 
 function SummaryCard({
   label,
@@ -170,52 +110,94 @@ function SummaryCard({
   );
 }
 
+function ErrorCard({ message, is403 }: { message: string; is403: boolean }) {
+  return (
+    <div className="card bg-red-50 border border-red-200 text-red-700 text-sm space-y-1">
+      {is403 ? (
+        <>
+          <p className="font-semibold">Perfil de produtor não encontrado</p>
+          <p className="text-xs opacity-80">Conclua o onboarding para acessar os relatórios. Certifique-se de ter cadastrado uma propriedade.</p>
+        </>
+      ) : (
+        <>
+          <p className="font-semibold">Erro ao carregar relatório</p>
+          <p className="text-xs opacity-80">{message}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="card h-24 animate-pulse bg-gray-100" />
+      ))}
+    </div>
+  );
+}
+
 /* ─── Aba Financeiro ─────────────────────────────────────────────────────── */
 
 function AbaFinanceiro() {
-  const [mes, setMes]           = useState(currentMonth());
-  const [data, setData]         = useState<RelatorioFinanceiro | null>(null);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
+  const [mes, setMes]         = useState(currentMonth());
+  const [data, setData]       = useState<RelatorioFinanceiro | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<{ message: string; is403: boolean } | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    setError('');
+    setError(null);
+    setData(null);
+    console.log('[Relatorios] Buscando financeiro, mês:', mes);
     api
       .get<{ status: string; data: RelatorioFinanceiro }>('/relatorios/financeiro', { params: { mes } })
-      .then((r) => setData(r.data.data))
-      .catch(() => setError('Erro ao carregar relatório financeiro.'))
+      .then((r) => {
+        console.log('[Relatorios] Resposta financeiro:', r.data.data);
+        setData(r.data.data);
+      })
+      .catch((err) => {
+        const parsed = extractErrorMessage(err);
+        console.error('[Relatorios] Erro financeiro:', parsed);
+        setError(parsed);
+      })
       .finally(() => setLoading(false));
   }, [mes]);
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (!data) return;
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();
-    let y = pdfHeader(doc, 'Relatório Financeiro — Agro Controle', `Período: ${mes}`);
-
-    y = pdfSummaryCards(doc, y, [
-      { label: 'Total Receitas', value: fmt(data.totalReceitas) },
-      { label: 'Total Despesas', value: fmt(data.totalDespesas) },
-      { label: 'Lucro Líquido',  value: fmt(data.lucroLiquido)  },
-    ]);
-
-    doc.setFontSize(10);
+    doc.setFontSize(18);
     doc.setTextColor(30, 80, 160);
-    doc.text('Detalhamento por Categoria', 14, y);
-    y += 4;
-
-    const colWidths = [80, 50, 50];
-    y = pdfTableHeader(doc, y, ['Categoria', 'Receitas', 'Despesas'], colWidths);
-    data.porCategoria.forEach((row, i) => {
-      y = pdfTableRow(
-        doc, y,
-        [CATEGORIA_LABELS[row.categoria] ?? row.categoria, fmt(row.totalReceitas), fmt(row.totalDespesas)],
-        colWidths, i % 2 === 0,
-      );
-    });
-
+    doc.text('Relatório Financeiro — Agro Controle', 14, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Período: ${mes}`, 14, 28);
     doc.setTextColor(0, 0, 0);
+    doc.line(14, 32, 196, 32);
+
+    let y = 42;
+    doc.setFontSize(10);
+    doc.text(`Total Receitas: ${fmt(data.totalReceitas)}`, 14, y); y += 7;
+    doc.text(`Total Despesas: ${fmt(data.totalDespesas)}`, 14, y); y += 7;
+    doc.text(`Lucro Líquido:  ${fmt(data.lucroLiquido)}`,  14, y); y += 12;
+
+    doc.setFontSize(11);
+    doc.setTextColor(30, 80, 160);
+    doc.text('Por Categoria', 14, y); y += 6;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+    for (const row of data.porCategoria) {
+      doc.text(`${CATEGORIA_LABELS[row.categoria] ?? row.categoria}`, 14, y);
+      doc.text(`Rec: ${fmt(row.totalReceitas)}  Desp: ${fmt(row.totalDespesas)}`, 80, y);
+      y += 6;
+      if (y > 270) { doc.addPage(); y = 20; }
+    }
+
     doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
     doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} — Agro Controle`, 14, 290);
     doc.save(`relatorio-financeiro-${mes}.pdf`);
   };
@@ -249,17 +231,11 @@ function AbaFinanceiro() {
         </button>
       </div>
 
-      {loading && (
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
-        </div>
-      )}
+      {loading && <SkeletonGrid />}
 
-      {error && (
-        <div className="card bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
-      )}
+      {error && <ErrorCard {...error} />}
 
-      {data && !loading && (
+      {data && !loading && !error && (
         <>
           {/* Cards resumo */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -307,7 +283,10 @@ function AbaFinanceiro() {
           <div className="card">
             <h3 className="font-semibold text-gray-900 mb-3">Por categoria</h3>
             {data.porCategoria.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-6">Nenhum lançamento no período.</p>
+              <div className="text-center py-8 space-y-1">
+                <p className="text-gray-500 text-sm">Nenhum lançamento no período selecionado.</p>
+                <p className="text-gray-400 text-xs">Registre receitas e despesas no módulo Financeiro.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -344,71 +323,56 @@ function AbaFinanceiro() {
 function AbaRebanho() {
   const [data, setData]       = useState<RelatorioRebanho | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState('');
+  const [error, setError]     = useState<{ message: string; is403: boolean } | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+    console.log('[Relatorios] Buscando rebanho...');
     api
       .get<{ status: string; data: RelatorioRebanho }>('/relatorios/rebanho')
-      .then((r) => setData(r.data.data))
-      .catch(() => setError('Erro ao carregar relatório do rebanho.'))
+      .then((r) => {
+        console.log('[Relatorios] Resposta rebanho:', r.data.data);
+        setData(r.data.data);
+      })
+      .catch((err) => {
+        const parsed = extractErrorMessage(err);
+        console.error('[Relatorios] Erro rebanho:', parsed);
+        setError(parsed);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (!data) return;
+    const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();
-    let y = pdfHeader(
-      doc,
-      'Relatório do Rebanho — Agro Controle',
-      `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
-    );
-
-    y = pdfSummaryCards(doc, y, [
-      { label: 'Animais Ativos',       value: String(data.totalAtivos) },
-      { label: 'Custo Total Rebanho',  value: fmt(data.custoTotalRebanho) },
-      { label: 'Custo Médio/Animal',   value: fmt(data.custoPorAnimal) },
-    ]);
-
-    doc.setFontSize(10);
+    doc.setFontSize(18);
     doc.setTextColor(30, 80, 160);
-    doc.text('Por Espécie', 14, y);
-    y += 4;
-
-    const colEsp = [60, 40, 80];
-    y = pdfTableHeader(doc, y, ['Espécie', 'Total', 'Custo Total'], colEsp);
-    data.porEspecie.forEach((row, i) => {
-      y = pdfTableRow(
-        doc, y,
-        [ESPECIE_LABELS[row.especie] ?? row.especie, String(row.total), fmt(row.custoTotal)],
-        colEsp, i % 2 === 0,
-      );
-    });
-
-    y += 6;
+    doc.text('Relatório do Rebanho — Agro Controle', 14, 20);
     doc.setFontSize(10);
-    doc.setTextColor(30, 80, 160);
-    doc.text('Eventos Recentes com Custo', 14, y);
-    y += 4;
-
-    const colEv = [40, 30, 70, 30, 22];
-    y = pdfTableHeader(doc, y, ['Animal', 'Tipo', 'Descrição', 'Valor', 'Data'], colEv);
-    data.eventosRecentes.forEach((ev, i) => {
-      y = pdfTableRow(
-        doc, y,
-        [
-          ev.animalNome ?? '—',
-          EVENTO_LABELS[ev.tipo] ?? ev.tipo,
-          ev.descricao.slice(0, 28),
-          fmt(ev.valor),
-          fmtDate(ev.data),
-        ],
-        colEv, i % 2 === 0,
-      );
-      if (y > 270) { doc.addPage(); y = 20; }
-    });
-
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
     doc.setTextColor(0, 0, 0);
+    doc.line(14, 32, 196, 32);
+
+    let y = 42;
+    doc.text(`Animais Ativos: ${data.totalAtivos}`, 14, y); y += 7;
+    doc.text(`Custo Total: ${fmt(data.custoTotalRebanho)}`, 14, y); y += 7;
+    doc.text(`Custo Médio/Animal: ${fmt(data.custoPorAnimal)}`, 14, y); y += 12;
+
+    doc.setFontSize(11);
+    doc.setTextColor(30, 80, 160);
+    doc.text('Por Espécie', 14, y); y += 6;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(9);
+    for (const row of data.porEspecie) {
+      doc.text(`${ESPECIE_LABELS[row.especie] ?? row.especie}: ${row.total} animais — ${fmt(row.custoTotal)}`, 14, y);
+      y += 6;
+    }
+
     doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
     doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')} — Agro Controle`, 14, 290);
     doc.save(`relatorio-rebanho-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
@@ -431,17 +395,11 @@ function AbaRebanho() {
         </button>
       </div>
 
-      {loading && (
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => <div key={i} className="card h-24 animate-pulse bg-gray-100" />)}
-        </div>
-      )}
+      {loading && <SkeletonGrid />}
 
-      {error && (
-        <div className="card bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>
-      )}
+      {error && <ErrorCard {...error} />}
 
-      {data && !loading && (
+      {data && !loading && !error && (
         <>
           {/* Cards resumo */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -459,7 +417,10 @@ function AbaRebanho() {
           <div className="card">
             <h3 className="font-semibold text-gray-900 mb-3">Por espécie</h3>
             {data.porEspecie.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-6">Nenhum animal cadastrado.</p>
+              <div className="text-center py-8 space-y-1">
+                <p className="text-gray-500 text-sm">Nenhum animal cadastrado.</p>
+                <p className="text-gray-400 text-xs">Cadastre animais no módulo Rebanho.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -491,7 +452,9 @@ function AbaRebanho() {
               <span className="text-gray-400 font-normal text-xs ml-2">(últimos 10)</span>
             </h3>
             {data.eventosRecentes.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-6">Nenhum evento com custo registrado.</p>
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm">Nenhum evento com custo registrado.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -530,7 +493,9 @@ function AbaRebanho() {
 type Tab = 'financeiro' | 'rebanho';
 
 export function Relatorios() {
-  const [tab, setTab] = useState<Tab>('financeiro');
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'rebanho' ? 'rebanho' : 'financeiro';
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
     <div className="space-y-4">

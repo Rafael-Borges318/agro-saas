@@ -3,6 +3,7 @@ import { NotFoundError } from '../../utils/AppError';
 import { startOfMonth, endOfMonth } from '../../utils/date';
 
 const MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'] as const;
+const ADMIN_ROLES = new Set(['ADMIN', 'SUPER_ADMIN']);
 
 /* ─── helpers ────────────────────────────────────────────────────────────── */
 
@@ -46,17 +47,23 @@ export const relatoriosService = {
 
   /* ── Relatório Financeiro ─────────────────────────────────────────────── */
 
-  async gerarRelatorioFinanceiro(produtorId: string, mes?: string) {
-    const produtor = await prisma.produtor.findUnique({ where: { id: produtorId }, select: { id: true } });
-    if (!produtor) throw new NotFoundError('Produtor');
+  async gerarRelatorioFinanceiro(produtorId: string, mes?: string, userRole?: string) {
+    const isAdmin = ADMIN_ROLES.has(userRole ?? '');
 
-    const propIds = await getPropIds(produtorId);
-    if (propIds.length === 0) {
+    if (!isAdmin) {
+      const produtor = await prisma.produtor.findUnique({ where: { id: produtorId }, select: { id: true } });
+      if (!produtor) throw new NotFoundError('Produtor');
+    }
+
+    const propIds = isAdmin ? null : await getPropIds(produtorId);
+    if (!isAdmin && propIds!.length === 0) {
       return {
         totalReceitas: 0, totalDespesas: 0, lucroLiquido: 0,
         porCategoria: [], evolucaoMensal: [],
       };
     }
+
+    const propFilter = isAdmin ? undefined : { propriedadeId: { in: propIds! } };
 
     // Date range for totals
     let dateFilter: { gte: Date; lte: Date };
@@ -71,11 +78,11 @@ export const relatoriosService = {
 
     const [receitas, despesas] = await Promise.all([
       prisma.receita.findMany({
-        where: { propriedadeId: { in: propIds }, data: dateFilter },
+        where: { ...propFilter, data: dateFilter },
         select: { valor: true, categoria: true, data: true },
       }),
       prisma.despesa.findMany({
-        where: { propriedadeId: { in: propIds }, data: dateFilter },
+        where: { ...propFilter, data: dateFilter },
         select: { valor: true, categoria: true, data: true },
       }),
     ]);
@@ -101,11 +108,11 @@ export const relatoriosService = {
     const { start: ev6Start } = last6Months();
     const [rec6, desp6] = await Promise.all([
       prisma.receita.findMany({
-        where: { propriedadeId: { in: propIds }, data: { gte: ev6Start } },
+        where: { ...propFilter, data: { gte: ev6Start } },
         select: { valor: true, data: true },
       }),
       prisma.despesa.findMany({
-        where: { propriedadeId: { in: propIds }, data: { gte: ev6Start } },
+        where: { ...propFilter, data: { gte: ev6Start } },
         select: { valor: true, data: true },
       }),
     ]);
@@ -138,12 +145,16 @@ export const relatoriosService = {
 
   /* ── Relatório Rebanho ────────────────────────────────────────────────── */
 
-  async gerarRelatorioRebanho(produtorId: string) {
-    const produtor = await prisma.produtor.findUnique({ where: { id: produtorId }, select: { id: true } });
-    if (!produtor) throw new NotFoundError('Produtor');
+  async gerarRelatorioRebanho(produtorId: string, userRole?: string) {
+    const isAdmin = ADMIN_ROLES.has(userRole ?? '');
 
-    const propIds = await getPropIds(produtorId);
-    if (propIds.length === 0) {
+    if (!isAdmin) {
+      const produtor = await prisma.produtor.findUnique({ where: { id: produtorId }, select: { id: true } });
+      if (!produtor) throw new NotFoundError('Produtor');
+    }
+
+    const propIds = isAdmin ? null : await getPropIds(produtorId);
+    if (!isAdmin && propIds!.length === 0) {
       return {
         totalAtivos: 0, totalInativos: 0, porEspecie: [],
         custoTotalRebanho: 0, custoPorAnimal: 0, eventosRecentes: [],
@@ -151,7 +162,7 @@ export const relatoriosService = {
     }
 
     const animais = await prisma.animal.findMany({
-      where: { propriedadeId: { in: propIds } },
+      where: isAdmin ? undefined : { propriedadeId: { in: propIds! } },
       select: { id: true, nome: true, especie: true, status: true },
     });
 

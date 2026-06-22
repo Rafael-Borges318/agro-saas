@@ -14,6 +14,7 @@ import { adminRouter } from '../modules/admin/admin.routes';
 import { plansRouter } from '../modules/plans/plans.routes';
 import { subscriptionsRouter } from '../modules/subscriptions/subscriptions.routes';
 import { onboardingRouter } from '../modules/onboarding/onboarding.routes';
+import { marketplaceRouter } from '../modules/marketplace/marketplace.routes';
 
 export const router = Router();
 
@@ -32,3 +33,4 @@ router.use('/admin', adminRouter);
 router.use('/plans', plansRouter);
 router.use('/subscriptions', subscriptionsRouter);
 router.use('/onboarding', onboardingRouter);
+router.use('/marketplace', marketplaceRouter);

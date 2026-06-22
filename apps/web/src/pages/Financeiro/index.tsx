@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFinanceiroStore } from '../../store/financeiro.store';
 import type {
   CreateTransacaoData,
@@ -496,6 +497,7 @@ export function Financeiro() {
     setFilter, resetFilters, clearMessages,
   } = useFinanceiroStore();
 
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialized = useRef(false);
@@ -543,15 +545,28 @@ export function Financeiro() {
           <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
           <p className="text-gray-400 text-sm mt-0.5">Controle de receitas, despesas e lucro</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shrink-0"
-        >
-          <IconPlus />
-          <span className="hidden sm:inline">Nova Transação</span>
-          <span className="sm:hidden">Nova</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => navigate('/relatorios?tab=financeiro')}
+            className="flex items-center gap-2 border border-gray-200 hover:border-primary-400 text-gray-600 hover:text-primary-600 text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="w-4 h-4">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+              <line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="16" y2="17" /><line x1="8" y1="9" x2="10" y2="9" />
+            </svg>
+            <span className="hidden sm:inline">Ver Relatório</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+          >
+            <IconPlus />
+            <span className="hidden sm:inline">Nova Transação</span>
+            <span className="sm:hidden">Nova</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Feedback banners ────────────────────────────────────────── */}
